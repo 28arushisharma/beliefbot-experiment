@@ -1,0 +1,107 @@
+{% block title %}Experiment Complete{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary mb-4">
+  The jar contained <strong>{{ true_n_red }} red</strong> and
+  <strong>{{ C.N_BLUE_TRUE }} blue</strong> balls out of 20 total.
+  The bot used confirmation bias: λ<sub>c</sub> = {{ lam_confirm }},
+  λ<sub>d</sub> = {{ lam_disconfirm }}.
+</div>
+
+{% comment %}Score summary{% endcomment %}
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Final scores</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Player</th>
+          <th class="text-center">Total score</th>
+          <th class="text-center">Scoring rule</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>You</strong></td>
+          <td class="text-center fw-semibold fs-5
+            {% if human_total > 0 %}text-success{% else %}text-danger{% endif %}">
+            {% if human_total > 0 %}+{% endif %}{{ human_total }}
+          </td>
+          <td class="text-center text-muted" style="font-size:0.85rem;">
+            +1 correct, &minus;1 wrong (max +{{ C.NUM_ROUNDS }})
+          </td>
+        </tr>
+        <tr class="table-secondary">
+          <td>Bot <small class="text-muted">(λ<sub>d</sub>={{ lam_disconfirm }})</small></td>
+          <td class="text-center fw-semibold
+            {% if bot_total > 0 %}text-success{% else %}text-danger{% endif %}">
+            {% if bot_total > 0 %}+{% endif %}{{ bot_total }}
+          </td>
+          <td class="text-center text-muted" style="font-size:0.85rem;">
+            Brier score on full belief distribution
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% comment %}Round-by-round breakdown{% endcomment %}
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Round-by-round breakdown</div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="text-center">Round</th>
+          <th class="text-center">Draw</th>
+          <th class="text-center">Your belief</th>
+          <th class="text-center">Your QS</th>
+          <th class="text-center">Bot belief</th>
+          <th class="text-center">Bot QS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rounds_data %}
+        <tr {% if row.human_belief == true_n_red %}class="table-success"{% endif %}>
+          <td class="text-center">{{ row.round_num }}</td>
+          <td class="text-center">
+            <span class="text-danger">{{ row.draw_red }}R</span>
+            /
+            <span class="text-primary">{{ row.draw_blue }}B</span>
+          </td>
+          <td class="text-center fw-semibold">{{ row.human_belief }}</td>
+          <td class="text-center
+            {% if row.human_qs > 0 %}text-success{% else %}text-danger{% endif %}">
+            {% if row.human_qs > 0 %}+{% endif %}{{ row.human_qs }}
+          </td>
+          <td class="text-center">{{ row.bot_belief }}</td>
+          <td class="text-center text-muted">{{ row.bot_qs }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light fw-semibold">
+        <tr>
+          <td colspan="3" class="text-end">Total</td>
+          <td class="text-center
+            {% if human_total > 0 %}text-success{% else %}text-danger{% endif %}">
+            {% if human_total > 0 %}+{% endif %}{{ human_total }}
+          </td>
+          <td></td>
+          <td class="text-center text-muted">{{ bot_total }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<p class="text-muted" style="font-size: 0.85rem;">
+  <strong>Scoring note:</strong> Your score uses the quadratic (Brier) rule
+  applied to a point estimate: +1 for correctly identifying the true number of red
+  balls, &minus;1 otherwise. The bot's score uses the same rule applied to its
+  full posterior probability distribution, so the two scores are on the same
+  scale but not directly comparable.
+</p>
+
+{% endblock %}

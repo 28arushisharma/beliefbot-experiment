@@ -1,0 +1,38 @@
+{% block title %}Round {{ player.round_number }} of {{ C.NUM_ROUNDS }} — Your Belief{% endblock %}
+
+{% block content %}
+
+<div class="card mb-4 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>This round's draw:</strong>
+    <span class="text-danger fw-semibold">{{ draw_red }} red</span>
+    &nbsp;/&nbsp;
+    <span class="text-primary fw-semibold">{{ draw_blue }} blue</span>
+    &nbsp;&mdash;&nbsp;balls are drawn <em>without replacement</em>.
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">
+    Your belief
+  </div>
+  <div class="card-body">
+    <p>
+      Based on all draws so far, how many of the original
+      <strong>20 balls</strong> do you think are <span class="text-danger">red</span>?
+    </p>
+    <p class="text-muted" style="font-size: 0.88rem;">
+      Enter a whole number from 0 (all blue) to 20 (all red).
+    </p>
+    {% formfields %}
+  </div>
+</div>
+
+<p class="text-muted" style="font-size: 0.85rem;">
+  You will score <strong>+1 point</strong> if your guess is exactly right,
+  and <strong>&minus;1 point</strong> if it is wrong.
+</p>
+
+{% next_button %}
+
+{% endblock %}
