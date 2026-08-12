@@ -1,0 +1,104 @@
+{% block title %}Round {{ player.round_number }} of {{ C.NUM_ROUNDS }} &mdash; Result{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Draw this round:</strong>
+    <span class="text-danger fw-semibold">{{ draw_red }} red</span>
+    &nbsp;/&nbsp;
+    <span class="text-primary fw-semibold">{{ draw_blue }} blue</span>
+    <span class="float-end">
+      Jar {{ jar_group }}, round {{ round_in_group }} of {{ C.ROUNDS_PER_JAR }}
+    </span>
+  </div>
+</div>
+
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">Outcome</div>
+  <div class="card-body">
+    <table class="table table-sm table-borderless w-auto mb-0">
+      <tbody>
+        <tr>
+          <td class="pe-4 text-muted">The jar was</td>
+          <td class="fw-semibold {% if jar_assignment == 'Red' %}text-danger{% else %}text-primary{% endif %}">
+            {{ jar_assignment }} Jar
+            ({% if jar_assignment == 'Red' %}14 red, 6 blue{% else %}14 blue, 6 red{% endif %})
+          </td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-muted">Your guess</td>
+          <td class="fw-semibold {% if guess == 'Red' %}text-danger{% else %}text-primary{% endif %}">
+            {{ guess }} Jar
+          </td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-muted">Result</td>
+          <td>
+            {% if is_correct %}
+              <span class="badge bg-success fs-6">Correct ✓</span>
+            {% else %}
+              <span class="badge bg-danger fs-6">Incorrect ✗</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-muted">Payoff this round</td>
+          <td class="fw-semibold {% if is_correct %}text-success{% else %}text-secondary{% endif %}">
+            ${{ payoff_this_round }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Running totals</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th></th>
+          <th class="text-center">Earned</th>
+          <th class="text-center">Max possible</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Current jar (Jar {{ jar_group }})</td>
+          <td class="text-center fw-semibold
+            {% if group_total > 0 %}text-success{% else %}text-secondary{% endif %}">
+            ${{ group_total }}
+          </td>
+          <td class="text-center text-muted">${{ group_max }}</td>
+        </tr>
+        <tr class="table-light">
+          <td>Stage 1 total (all {{ player.round_number }} rounds)</td>
+          <td class="text-center fw-semibold
+            {% if overall_total > 0 %}text-success{% else %}text-secondary{% endif %}">
+            ${{ overall_total }}
+          </td>
+          <td class="text-center text-muted">${{ overall_max }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_last_round %}
+<div class="alert alert-info">
+  <strong>Stage 1 complete.</strong>
+  You earned <strong>${{ overall_total }}</strong> out of a possible
+  <strong>${{ overall_max }}</strong> across all {{ C.NUM_ROUNDS }} rounds.
+</div>
+{% endif %}
+
+{% next_button %}
+
+{% endblock %}

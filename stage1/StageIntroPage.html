@@ -1,0 +1,70 @@
+{% block title %}You are now entering Stage 1{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="alert alert-warning" role="alert">
+  <strong>Important:</strong> Do <em>not</em> refresh or close this page during the experiment.
+  Doing so may cause you to lose your progress and earnings.
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold bg-primary text-white">
+    Stage 1 &mdash; Bayesian Learning
+  </div>
+  <div class="card-body">
+    <p>
+      In this stage you will observe balls drawn from a jar and try to identify which jar
+      they came from. There are two possible jars:
+    </p>
+    <ul>
+      <li>
+        <span class="text-danger fw-semibold">Red Jar</span>:
+        14 red balls and 6 blue balls
+      </li>
+      <li>
+        <span class="text-primary fw-semibold">Blue Jar</span>:
+        14 blue balls and 6 red balls
+      </li>
+    </ul>
+    <p>
+      You will play <strong>{{ C.NUM_ROUNDS }} rounds in total</strong>, split into two
+      sets of <strong>{{ C.ROUNDS_PER_JAR }} rounds</strong>:
+    </p>
+    <ul>
+      <li>
+        <strong>Rounds 1&ndash;{{ C.ROUNDS_PER_JAR }}:</strong>
+        all draws come from the <em>same</em> jar (Jar 1).
+      </li>
+      <li>
+        <strong>Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }}:</strong>
+        all draws come from a <em>new</em> jar (Jar 2), which may be different from Jar 1.
+      </li>
+    </ul>
+    <p>
+      Each round, <strong>{{ C.N_DRAWS }} balls</strong> are drawn from the jar.
+      You will not be told which jar it is &mdash; use the draws to figure it out.
+    </p>
+    <p class="mb-0 text-muted" style="font-size:0.9rem;">
+      Balls are drawn independently each round (the jar is always full before a draw).
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Payoffs</div>
+  <div class="card-body">
+    <ul class="mb-0">
+      <li>Correct guess: <strong class="text-success">${{ C.PAYOFF_CORRECT }}</strong></li>
+      <li>Wrong guess: <strong class="text-danger">$0</strong></li>
+    </ul>
+  </div>
+</div>
+
+{% next_button %}
+
+{% endblock %}

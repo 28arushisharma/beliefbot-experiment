@@ -2,6 +2,12 @@ from os import environ
 
 SESSION_CONFIGS = [
     dict(
+        name='stage1',
+        display_name='Stage 1 — Bayesian Learning',
+        app_sequence=['stage1'],
+        num_demo_participants=1,
+    ),
+    dict(
         name='jar_beliefs',
         display_name='Jar & Balls: Belief Updating',
         app_sequence=['jar_beliefs'],

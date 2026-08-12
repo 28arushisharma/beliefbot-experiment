@@ -1,0 +1,59 @@
+{% block title %}Round {{ player.round_number }} of {{ C.NUM_ROUNDS }} &mdash; Your Guess{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body" style="font-size: 0.9rem;">
+    <strong>Draw this round:</strong>
+    &nbsp;
+    {% for _ in red_balls %}
+      <span style="
+        display: inline-block;
+        width: 1.5rem; height: 1.5rem;
+        border-radius: 50%;
+        background: #c0392b;
+        border: 2px solid #922b21;
+        vertical-align: middle;
+      "></span>
+    {% endfor %}
+    {% for _ in blue_balls %}
+      <span style="
+        display: inline-block;
+        width: 1.5rem; height: 1.5rem;
+        border-radius: 50%;
+        background: #2980b9;
+        border: 2px solid #1a5276;
+        vertical-align: middle;
+      "></span>
+    {% endfor %}
+    &nbsp;
+    <span class="text-muted">
+      (<span class="text-danger fw-semibold">{{ draw_red }} red</span>
+      &nbsp;/&nbsp;
+      <span class="text-primary fw-semibold">{{ draw_blue }} blue</span>)
+    </span>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Your Guess</div>
+  <div class="card-body">
+    <p class="text-muted mb-3" style="font-size: 0.9rem;">
+      <span class="text-danger fw-semibold">Red Jar</span> = 14 red, 6 blue
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <span class="text-primary fw-semibold">Blue Jar</span> = 14 blue, 6 red
+    </p>
+    {% formfields %}
+  </div>
+</div>
+
+<p class="text-muted" style="font-size: 0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}
