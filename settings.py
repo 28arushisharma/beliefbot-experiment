@@ -14,6 +14,12 @@ SESSION_CONFIGS = [
         num_demo_participants=1,
     ),
     dict(
+        name='stage3',
+        display_name='Stage 3 — Conformity (Coordination Game)',
+        app_sequence=['stage3'],
+        num_demo_participants=2,  # Player 1 = human, Player 2 = bot (matches 1-2) / human (matches 3-4)
+    ),
+    dict(
         name='jar_beliefs',
         display_name='Jar & Balls: Belief Updating',
         app_sequence=['jar_beliefs'],

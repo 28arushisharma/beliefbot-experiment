@@ -1,0 +1,62 @@
+{% block title %}Match {{ match_number }}, Round {{ round_in_match }} &mdash; Make Your Guess{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>{{ C.N_DRAWS }} balls drawn this round:</strong>
+    <span class="text-danger fw-semibold">{{ draw_red }} red</span>
+    &nbsp;/&nbsp;
+    <span class="text-primary fw-semibold">{{ draw_blue }} blue</span>
+    <span class="float-end">
+      Match {{ match_number }}, round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }}
+    </span>
+  </div>
+</div>
+
+<div class="card mb-4 border-0 shadow-sm">
+  <div class="card-header fw-semibold">Ball summary</div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      {% for _ in red_balls %}
+        <span style="
+          display: inline-block;
+          width: 2.4rem; height: 2.4rem;
+          border-radius: 50%;
+          background: #c0392b;
+          border: 2px solid #922b21;
+        " aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in blue_balls %}
+        <span style="
+          display: inline-block;
+          width: 2.4rem; height: 2.4rem;
+          border-radius: 50%;
+          background: #2980b9;
+          border: 2px solid #1a5276;
+        " aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Your guess</div>
+  <div class="card-body">
+    <p class="text-muted mb-3" style="font-size:0.9rem;">
+      Your opponent is also making their choice independently.
+    </p>
+    {% formfields %}
+  </div>
+</div>
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}

@@ -48,15 +48,17 @@ Built in oTree. Uses the `beliefbot` Python library for Bayesian belief updating
 - Store: jar_group, jar_assignment, initial_balls, each additional ball, n_additional_draws, total_draw_cost, guess, correct/wrong, gross_payoff, net_payoff, posterior after each draw
 
 ## Stage 3 — Conformity (Coordination Game)
-- 2 rounds vs computer + 2 rounds vs real player (bot fills if mismatch)
-- Same jar for all 4 rounds, told to participant
-- 10 balls shown per round
-- Computer picks Red or Blue randomly at start, sticks with same choice all 4 rounds
-- Computer player handled by beliefbot BeliefEngine with lam_confirm=0, lam_disconfirm=0 (pure Bayesian) for jar choice
-- Both players make independent choices, then see each other's choices
-- Matched with same partner for all 4 rounds
-- Payoffs: both correct = $30, both wrong = $20, one correct = $10 correct / $0 wrong
-- Store: jar, draw, p1 choice, p2 choice (computer or human), both correct, payoffs
+- PLAYERS_PER_GROUP = 2; NUM_ROUNDS = 12
+- One jar for ALL 12 rounds, assigned once from session code (_seed_jar)
+- 4 matches × 3 sub-rounds = 12 rounds total; 10 balls per sub-round, WITH replacement
+- Matches 1-2 (rounds 1-6): vs computer bot; matches 3-4 (rounds 7-12): vs real human
+- Bot is Player 2 (id_in_group==2); all their pages use is_displayed=False during bot matches
+- Bot choice: fixed Red/Blue set once in participant.vars['bot_choice'] at round 1 creating_session
+- Bot choice set in after_all_players_arrive (ResultsWaitPage) from participant.vars
+- MatchTransitionPage shown at rounds 4, 7, 10 (non-bot players only)
+- Payoffs: both correct=$30, both wrong=$20, one correct=$10/$0
+- Store per sub-round: draw_red, draw_blue, balls_drawn_json (Group), guess, is_correct, payoff_this_round, posterior_red (Player)
+- Cumulative earnings updated only for actively-playing players (not bot during bot matches)
 
 ## Stages 4-6
 - To be built after Stages 1-3 are complete

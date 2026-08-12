@@ -210,6 +210,11 @@ class ChoicePage(Page):
     form_fields = ['guess']
 
     @staticmethod
+    def error_message(player, values):
+        if not values.get('guess'):
+            return 'Please select a jar before continuing.'
+
+    @staticmethod
     def vars_for_template(player: Player):
         k_red, k_blue = _get_draw(player.session.code, player.round_number)
         return dict(

@@ -1,0 +1,118 @@
+{% block title %}Match {{ match_number }}, Round {{ round_in_match }} &mdash; Result{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Draw summary:</strong>
+    <span class="text-danger fw-semibold">{{ draw_red }} red</span>
+    &nbsp;/&nbsp;
+    <span class="text-primary fw-semibold">{{ draw_blue }} blue</span>
+    ({{ C.N_DRAWS }} balls total)
+    <span class="float-end">Match {{ match_number }}, round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }}</span>
+  </div>
+</div>
+
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">Outcome</div>
+  <div class="card-body">
+    <table class="table table-sm table-borderless w-auto mb-0">
+      <tbody>
+        <tr>
+          <td class="pe-4 text-muted">The jar was</td>
+          <td class="fw-semibold {% if jar_assignment == 'Red' %}text-danger{% else %}text-primary{% endif %}">
+            {{ jar_assignment }} Jar
+            ({% if jar_assignment == 'Red' %}14 red, 6 blue{% else %}14 blue, 6 red{% endif %})
+          </td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-muted">Your guess</td>
+          <td class="fw-semibold {% if guess == 'Red' %}text-danger{% else %}text-primary{% endif %}">
+            {{ guess }} Jar
+          </td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-muted">Opponent's guess</td>
+          <td class="fw-semibold {% if partner_guess == 'Red' %}text-danger{% else %}text-primary{% endif %}">
+            {{ partner_guess }} Jar
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">Round result</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th></th>
+          <th class="text-center">Correct?</th>
+          <th class="text-center">Earned</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="table-light fw-bold">
+          <td class="ps-3">You</td>
+          <td class="text-center">
+            {% if is_correct %}
+              <span class="badge bg-success">Yes ✓</span>
+            {% else %}
+              <span class="badge bg-danger">No ✗</span>
+            {% endif %}
+          </td>
+          <td class="text-center {% if payoff_this_round > 0 %}text-success{% else %}text-secondary{% endif %}">
+            ${{ payoff_this_round }}
+          </td>
+        </tr>
+        <tr>
+          <td class="ps-3 text-muted">Opponent</td>
+          <td class="text-center">
+            {% if partner_is_correct %}
+              <span class="badge bg-success">Yes ✓</span>
+            {% else %}
+              <span class="badge bg-danger">No ✗</span>
+            {% endif %}
+          </td>
+          <td class="text-center text-muted">
+            {% if partner_is_correct %}${{ C.PAYOFF_ONE_CORRECT }}{% if is_correct %}&nbsp;→&nbsp;${{ C.PAYOFF_BOTH_CORRECT }}{% endif %}
+            {% else %}${{ C.PAYOFF_ONE_WRONG }}{% if not is_correct %}&nbsp;→&nbsp;${{ C.PAYOFF_BOTH_WRONG }}{% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Running total</div>
+  <div class="card-body">
+    <p class="mb-0">
+      Cumulative earnings so far:
+      <strong class="{% if cumulative_earnings > 0 %}text-success{% else %}text-secondary{% endif %}">
+        ${{ cumulative_earnings }}
+      </strong>
+    </p>
+  </div>
+</div>
+
+{% if is_last_round %}
+<div class="alert alert-info">
+  <strong>Stage 3 complete.</strong>
+  Your total earnings from Stage 3 are included in your cumulative total above.
+</div>
+{% endif %}
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}

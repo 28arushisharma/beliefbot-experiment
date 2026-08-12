@@ -273,6 +273,11 @@ class DrawPage(Page):
     form_fields = ['want_additional_1']
 
     @staticmethod
+    def error_message(player, values):
+        if values.get('want_additional_1') is None:
+            return 'Please select an option before continuing.'
+
+    @staticmethod
     def vars_for_template(player):
         jar, initial, _ = _compute_all_draws(player.session.code, player.round_number)
         g, rig, group_start, group_end = _group_context(player.round_number)
@@ -304,6 +309,11 @@ class AdditionalDrawPage1(Page):
     form_fields = ['want_additional_2']
 
     @staticmethod
+    def error_message(player, values):
+        if values.get('want_additional_2') is None:
+            return 'Please select an option before continuing.'
+
+    @staticmethod
     def is_displayed(player): return player.want_additional_1
 
     @staticmethod
@@ -318,6 +328,11 @@ class AdditionalDrawPage2(Page):
     form_fields = ['want_additional_3']
 
     @staticmethod
+    def error_message(player, values):
+        if values.get('want_additional_3') is None:
+            return 'Please select an option before continuing.'
+
+    @staticmethod
     def is_displayed(player): return player.want_additional_2
 
     @staticmethod
@@ -330,6 +345,11 @@ class AdditionalDrawPage2(Page):
 class AdditionalDrawPage3(Page):
     form_model  = 'player'
     form_fields = ['want_additional_4']
+
+    @staticmethod
+    def error_message(player, values):
+        if values.get('want_additional_4') is None:
+            return 'Please select an option before continuing.'
 
     @staticmethod
     def is_displayed(player): return player.want_additional_3
@@ -357,6 +377,11 @@ class AdditionalDrawPage4(Page):
 class ChoicePage(Page):
     form_model  = 'player'
     form_fields = ['guess']
+
+    @staticmethod
+    def error_message(player, values):
+        if not values.get('guess'):
+            return 'Please select a jar before continuing.'
 
     @staticmethod
     def vars_for_template(player):
