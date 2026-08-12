@@ -8,7 +8,14 @@ Built in oTree. Uses the `beliefbot` Python library for Bayesian belief updating
 - Red Jar: 14 red, 6 blue (always described this way, never percentages)
 - Blue Jar: 14 blue, 6 red
 - 20 balls total
-- Draws are without replacement within a round; jar resets to 20 at start of each round
+- Jar resets to 20 balls at the start of every sub-round
+
+## Round Structure (all stages)
+- All stages use 2 jar groups × 3 sub-rounds = 6 rounds total (NUM_ROUNDS = 6, ROUNDS_PER_JAR = 3)
+- Rounds 1-3 share the same jar (jar group 1, randomly Red or Blue from session code)
+- Rounds 4-6 share a different jar (jar group 2, always opposite colour of group 1)
+- A JarChangePage transition is shown at round 4 in every stage
+- Within a jar group the colour is fixed; the jar resets to 20 balls before each sub-round
 
 ## Global Rules
 - Always warn participants not to refresh the page
@@ -23,22 +30,22 @@ Built in oTree. Uses the `beliefbot` Python library for Bayesian belief updating
 
 ## Stage 1 — Bayesian Learning
 - Individual, no multiplayer
-- Same jar for all rounds, told to participant upfront
-- 2 rounds, 3 draws of 6 balls per round
-- Jar resets to 20 each round
+- 6 rounds: rounds 1-3 use jar group 1, rounds 4-6 use jar group 2
+- Each round: 6 balls drawn WITH replacement from the full 20-ball jar
+- JarChangePage shown at round 4
 - Payoff: $5 correct, $0 wrong (placeholder)
-- Store: jar assignment, each ball drawn, guess, correct/wrong, payoff, posterior
+- Store: jar_group, jar_assignment, balls drawn, guess, correct/wrong, payoff, posterior
 
 ## Stage 2 — Rationality (Sequential Draws)
-- Individual, no multiplayer  
-- New jar each round, tell participant jar may change
-- Start with 6 balls shown
-- First additional draw: rigged 4 matching + 2 opposite color
-- Remaining additional draws: random from remaining jar
-- Max 4 additional draws (10 balls total maximum)
-- Cost per additional draw: $2 placeholder (deducted from earnings)
-- 2 rounds
-- Store: jar, all balls drawn, how many additional draws requested, money spent, final guess, correct/wrong
+- Individual, no multiplayer
+- 6 rounds: rounds 1-3 use jar group 1, rounds 4-6 use jar group 2 (same 2×3 structure as Stage 1)
+- JarChangePage shown at round 4
+- Each round: 6 balls drawn WITHOUT replacement from a fresh 20-ball jar
+- Participant may then purchase up to 4 additional balls at $2 each (10 balls total max)
+- First additional ball is rigged to match jar majority colour (displayed as if random)
+- Subsequent additional balls are truly random from remaining jar
+- Net payoff = $5 if correct else $0, minus $2 per additional ball purchased (can be negative)
+- Store: jar_group, jar_assignment, initial_balls, each additional ball, n_additional_draws, total_draw_cost, guess, correct/wrong, gross_payoff, net_payoff, posterior after each draw
 
 ## Stage 3 — Conformity (Coordination Game)
 - 2 rounds vs computer + 2 rounds vs real player (bot fills if mismatch)

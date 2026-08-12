@@ -1,0 +1,87 @@
+{% block title %}You are now entering Stage 2{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="alert alert-warning" role="alert">
+  <strong>Important:</strong> Do <em>not</em> refresh or close this page during the experiment.
+  Doing so may cause you to lose your progress and earnings.
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold bg-primary text-white">
+    Stage 2 &mdash; Sequential Information Acquisition
+  </div>
+  <div class="card-body">
+    <p>
+      As in Stage 1, you will try to identify which jar balls are drawn from.
+      The two possible jars are:
+    </p>
+    <ul>
+      <li><span class="text-danger fw-semibold">Red Jar</span>: 14 red balls, 6 blue balls</li>
+      <li><span class="text-primary fw-semibold">Blue Jar</span>: 14 blue balls, 6 red balls</li>
+    </ul>
+    <p>
+      You will play <strong>{{ C.NUM_ROUNDS }} rounds in total</strong>,
+      split into two sets of <strong>{{ C.ROUNDS_PER_JAR }} rounds</strong>:
+    </p>
+    <ul>
+      <li>
+        <strong>Rounds 1&ndash;{{ C.ROUNDS_PER_JAR }}:</strong>
+        all draws come from the <em>same</em> jar (Jar 1).
+      </li>
+      <li>
+        <strong>Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }}:</strong>
+        all draws come from a <em>new</em> jar (Jar 2), which may be different from Jar 1.
+      </li>
+    </ul>
+    <p class="mb-0 text-muted" style="font-size: 0.9rem;">
+      The jar resets to 20 balls at the start of each round.
+      You will not be told which jar it is &mdash; use the draws to figure it out.
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">How each round works</div>
+  <div class="card-body">
+    <ol class="mb-0">
+      <li class="mb-2">
+        You are shown <strong>{{ C.N_INITIAL_DRAWS }} balls</strong> drawn without
+        replacement from the jar.
+      </li>
+      <li class="mb-2">
+        You may then purchase <strong>additional balls</strong>, one at a time,
+        at <strong class="text-danger">${{ draw_cost }}</strong> each.
+        Up to <strong>{{ C.MAX_ADDITIONAL }}</strong> additional balls are available
+        ({{ C.N_INITIAL_DRAWS }} initial + {{ C.MAX_ADDITIONAL }} extra =
+        <strong>{{ max_balls_total }} balls total</strong> maximum).
+      </li>
+      <li class="mb-2">
+        After seeing as many balls as you want, you guess
+        <strong>Red Jar</strong> or <strong>Blue Jar</strong>.
+      </li>
+      <li>
+        Correct guess: <strong class="text-success">${{ C.PAYOFF_CORRECT }}</strong>.
+        Wrong guess: <strong class="text-danger">$0</strong>.
+        Your <strong>net earnings</strong> = payoff &minus; cost of extra balls purchased.
+      </li>
+    </ol>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm border-warning">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Note:</strong> If you buy many extra balls and guess wrong, your net earnings
+    for that round can be negative. Think carefully about whether the additional information
+    is worth the cost.
+  </div>
+</div>
+
+{% next_button %}
+
+{% endblock %}

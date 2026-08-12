@@ -8,6 +8,12 @@ SESSION_CONFIGS = [
         num_demo_participants=1,
     ),
     dict(
+        name='stage2',
+        display_name='Stage 2 — Sequential Information Acquisition',
+        app_sequence=['stage2'],
+        num_demo_participants=1,
+    ),
+    dict(
         name='jar_beliefs',
         display_name='Jar & Balls: Belief Updating',
         app_sequence=['jar_beliefs'],

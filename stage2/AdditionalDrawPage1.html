@@ -1,0 +1,113 @@
+{% block title %}Round {{ player.round_number }} &mdash; Additional Ball {{ add_draw_number }}{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+{% if new_ball_is_red %}
+<div class="alert alert-danger d-flex align-items-center gap-3" role="alert">
+  <span style="
+    display: inline-block;
+    width: 2.8rem; height: 2.8rem; flex-shrink: 0;
+    border-radius: 50%;
+    background: #c0392b;
+    border: 2px solid #922b21;
+  "></span>
+  <div>
+    <strong>Additional ball {{ add_draw_number }}:</strong>
+    <span class="text-danger fw-semibold">Red ball</span>
+    &nbsp;&mdash;&nbsp;
+    cost: <span class="text-danger">-${{ draw_cost }}</span>
+    (total extra cost so far: <span class="text-danger">-${{ cost_so_far }}</span>)
+  </div>
+</div>
+{% else %}
+<div class="alert alert-primary d-flex align-items-center gap-3" role="alert">
+  <span style="
+    display: inline-block;
+    width: 2.8rem; height: 2.8rem; flex-shrink: 0;
+    border-radius: 50%;
+    background: #2980b9;
+    border: 2px solid #1a5276;
+  "></span>
+  <div>
+    <strong>Additional ball {{ add_draw_number }}:</strong>
+    <span class="text-primary fw-semibold">Blue ball</span>
+    &nbsp;&mdash;&nbsp;
+    cost: <span class="text-danger">-${{ draw_cost }}</span>
+    (total extra cost so far: <span class="text-danger">-${{ cost_so_far }}</span>)
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-4 border-0 shadow-sm">
+  <div class="card-header fw-semibold">
+    All {{ n_draws_total }} balls drawn this round
+    <span class="text-muted fw-normal" style="font-size: 0.85rem;">
+      &mdash; Jar {{ jar_group }}, round {{ round_in_group }} of {{ C.ROUNDS_PER_JAR }}
+      (rounds {{ group_start }}&ndash;{{ group_end }})
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      {% for _ in red_balls %}
+        <span style="
+          display: inline-block;
+          width: 2.4rem; height: 2.4rem;
+          border-radius: 50%;
+          background: #c0392b;
+          border: 2px solid #922b21;
+        " aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in blue_balls %}
+        <span style="
+          display: inline-block;
+          width: 2.4rem; height: 2.4rem;
+          border-radius: 50%;
+          background: #2980b9;
+          border: 2px solid #1a5276;
+        " aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+    <table class="table table-sm table-borderless w-auto mb-0">
+      <tbody>
+        <tr>
+          <td class="pe-4 text-danger fw-semibold">Red balls drawn</td>
+          <td>{{ draw_red }}</td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-primary fw-semibold">Blue balls drawn</td>
+          <td>{{ draw_blue }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_last_additional %}
+<div class="alert alert-warning">
+  <strong>Maximum draws reached.</strong>
+  You have purchased all {{ max_additional }} additional balls available this round.
+  Please make your final jar decision below.
+</div>
+{% else %}
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Buy another ball?</div>
+  <div class="card-body">
+    <p class="text-muted mb-2" style="font-size: 0.9rem;">
+      Each additional ball costs <strong>${{ draw_cost }}</strong>.
+      You have used {{ add_draw_number }} of {{ max_additional }} additional draws.
+    </p>
+    {% formfields %}
+  </div>
+</div>
+{% endif %}
+
+<p class="text-muted" style="font-size: 0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}

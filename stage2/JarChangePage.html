@@ -1,0 +1,53 @@
+{% block title %}The jar has changed{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="alert alert-info" role="alert">
+  <strong>New jar!</strong> You are now drawing from a <em>different</em> jar
+  for the next {{ C.ROUNDS_PER_JAR }} rounds.
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Your results so far (Rounds 1&ndash;{{ C.ROUNDS_PER_JAR }})</div>
+  <div class="card-body">
+    <p class="mb-0">
+      Net earnings from Jar 1:
+      <strong class="{% if group1_net >= 0 %}text-success{% else %}text-danger{% endif %}">
+        {% if group1_net >= 0 %}${{ group1_net }}{% else %}&minus;${{ abs_group1_net }}{% endif %}
+      </strong>
+      <span class="text-muted">
+        (max possible if all correct, no extra draws: ${{ group1_max_gross }})
+      </span>
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">What to expect next (Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }})</div>
+  <div class="card-body">
+    <p>
+      The new jar is either a
+      <span class="text-danger fw-semibold">Red Jar</span> (14 red, 6 blue) or a
+      <span class="text-primary fw-semibold">Blue Jar</span> (14 blue, 6 red).
+    </p>
+    <p>
+      You will see <strong>{{ C.ROUNDS_PER_JAR }} more rounds</strong> from this new jar,
+      with the same rules: {{ C.N_INITIAL_DRAWS }} initial balls, then up to
+      {{ C.MAX_ADDITIONAL }} extra at ${{ C.DRAW_COST }} each.
+    </p>
+    <p class="mb-0 text-muted" style="font-size: 0.9rem;">
+      The jar resets to 20 balls before every round.
+    </p>
+  </div>
+</div>
+
+<p class="text-muted" style="font-size: 0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}
