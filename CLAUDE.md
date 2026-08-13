@@ -60,9 +60,27 @@ Built in oTree. Uses the `beliefbot` Python library for Bayesian belief updating
 - Store per sub-round: draw_red, draw_blue, balls_drawn_json (Group), guess, is_correct, payoff_this_round, posterior_red (Player)
 - Cumulative earnings updated only for actively-playing players (not bot during bot matches)
 
-## Stages 4-6
-- To be built after Stages 1-3 are complete
-- Writer-reader design with sample selection
+## Stage 4 — Writer-Reader Game
+- PLAYERS_PER_GROUP = 2; NUM_ROUNDS = 12
+- Player 1 = Writer (sees all 20 balls + 6-ball sample); Player 2 = Reader (sees sample only)
+- 4 matches × 3 sub-rounds = 12 rounds; 2 jars (jar 1 rounds 1-6, jar 2 rounds 7-12, opposite colours)
+- Matches 1-2 (rounds 1-6): vs computer Reader (bot P2); matches 3-4 (rounds 7-12): vs human Reader
+- Bot reader type ('good' or 'bad') assigned per match from session code; stored in participant.vars['bot_reader_types'] as {1: ..., 2: ...}
+- Good bot: lam_confirm=0, lam_disconfirm=0 → guesses higher-posterior jar
+- Bad bot: lam_confirm=0, lam_disconfirm=0.9 → guesses opposite of biased posterior mode
+- Sample: 6 balls drawn WITHOUT replacement from jar; additional draws from remaining 14 (up to 3, no cost)
+- Bot reader always uses 0 additional draws; bot guess computed in WriterPage.before_next_page
+- ReaderWaitPage (WaitPage): Reader waits for Writer; skipped in bot rounds; P1 passes instantly in human rounds
+- ResultsWaitPage (WaitPage): skipped for bot rounds; after_all_players_arrive for human rounds
+- In bot rounds: all computation in WriterPage.before_next_page (same pattern as Stage 3)
+- ReaderPage uses JS to reveal pre-computed additional balls one at a time; n_additional_draws hidden input
+- Writer's posterior stored as 1.0/0.0 (knows true jar); Reader posteriors stored for good and bad engines
+- Posteriors stored: posterior_red_good (lam_disconfirm=0), posterior_red_bad (lam_disconfirm=0.9)
+- Cumulative earnings updated: Writer only in bot rounds; both players in human rounds
+- ResultsPage shows Writer how many additional draws Reader requested
+
+## Stages 5-6
+- To be built after Stages 1-4 are complete
 - See project notes for full design
 
 ## oTree Conventions Used

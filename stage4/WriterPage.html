@@ -1,0 +1,97 @@
+{% block title %}Match {{ match_number }}, Round {{ round_in_match }} &mdash; Writer's View{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
+    <span class="float-end">
+      <span class="badge bg-secondary">vs reader</span>
+    </span>
+  </div>
+</div>
+
+<div class="card mb-4 border-0 shadow-sm">
+  <div class="card-header fw-semibold">
+    Full jar &mdash; all {{ C.N_BALLS }} balls
+    <span class="badge {% if jar == 'Red' %}bg-danger{% else %}bg-primary{% endif %} ms-2">
+      {{ jar }} Jar
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      {% for _ in all_red_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in all_blue_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+    <p class="text-muted mb-0" style="font-size:0.85rem;">
+      You can see all {{ C.N_BALLS }} balls. You know the true jar.
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 border-warning shadow-sm">
+  <div class="card-header fw-semibold text-warning-emphasis">
+    Sample shown to your reader &mdash; {{ C.SAMPLE_SIZE }} balls
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      {% for _ in sample_red_balls %}
+        <span style="display:inline-block;width:2.4rem;height:2.4rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in sample_blue_balls %}
+        <span style="display:inline-block;width:2.4rem;height:2.4rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+    <table class="table table-sm table-borderless w-auto mb-0">
+      <tbody>
+        <tr>
+          <td class="pe-4 text-danger fw-semibold">Red balls</td>
+          <td>{{ n_red_sample }}</td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-primary fw-semibold">Blue balls</td>
+          <td>{{ n_blue_sample }}</td>
+        </tr>
+        <tr>
+          <td class="pe-4 text-muted">Total in sample</td>
+          <td>{{ C.SAMPLE_SIZE }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="text-muted mt-2 mb-0" style="font-size:0.85rem;">
+      Your reader sees only these {{ C.SAMPLE_SIZE }} balls. They may request up to {{ C.MAX_ADDITIONAL }} additional draws.
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Your guess</div>
+  <div class="card-body">
+    <p class="text-muted mb-3" style="font-size:0.9rem;">
+      Your reader is reviewing the sample and making their own guess independently.
+    </p>
+    {% formfields %}
+  </div>
+</div>
+
+<div class="alert alert-light border">
+  <strong>Reminder:</strong>
+  Red Jar has 14 red &amp; 6 blue balls.
+  Blue Jar has 14 blue &amp; 6 red balls.
+  Both jars contain {{ C.N_BALLS }} balls total.
+</div>
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}

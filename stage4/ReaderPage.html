@@ -1,0 +1,126 @@
+{% block title %}Match {{ match_number }}, Round {{ round_in_match }} &mdash; Reader's View{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
+    <span class="float-end"><span class="badge bg-secondary">vs writer</span></span>
+  </div>
+</div>
+
+<div class="card mb-4 border-0 shadow-sm">
+  <div class="card-header fw-semibold">
+    Your sample &mdash; {{ C.SAMPLE_SIZE }} balls drawn from the jar
+    <span class="text-muted fw-normal" style="font-size:0.85rem;">
+      &mdash; <span class="text-danger">{{ n_red_sample }} red</span>
+      &nbsp;/&nbsp;
+      <span class="text-primary">{{ n_blue_sample }} blue</span>
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      {% for _ in sample_red_balls %}
+        <span style="display:inline-block;width:2.4rem;height:2.4rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in sample_blue_balls %}
+        <span style="display:inline-block;width:2.4rem;height:2.4rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+    <p class="text-muted mb-0" style="font-size:0.85rem;">
+      These {{ C.SAMPLE_SIZE }} balls were drawn without replacement from the jar.
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">
+    Additional draws
+    <span class="text-muted fw-normal" style="font-size:0.85rem;">(up to {{ C.MAX_ADDITIONAL }}, no cost)</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-3" style="font-size:0.9rem;">
+      You may request up to {{ C.MAX_ADDITIONAL }} more balls drawn from the remaining jar.
+      Each click reveals one additional ball.
+    </p>
+    <div id="revealed-balls" class="d-flex flex-wrap gap-2 mb-3" style="min-height:1rem;"></div>
+    <p class="mb-2" style="font-size:0.9rem;">
+      Additional draws requested: <strong id="n-draws-label">0</strong> / {{ C.MAX_ADDITIONAL }}
+    </p>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="draw-btn">
+      Draw 1 more ball
+    </button>
+    <span class="text-muted ms-2" id="no-more-text" style="display:none; font-size:0.9rem;">
+      Maximum additional draws reached.
+    </span>
+  </div>
+</div>
+
+<!-- Pre-computed additional balls (hidden; revealed one at a time by JS) -->
+<span id="add-ball-1" data-color="{{ additional_ball_1 }}" style="display:none;"></span>
+<span id="add-ball-2" data-color="{{ additional_ball_2 }}" style="display:none;"></span>
+<span id="add-ball-3" data-color="{{ additional_ball_3 }}" style="display:none;"></span>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Your guess</div>
+  <div class="card-body">
+    <p class="text-muted mb-3" style="font-size:0.9rem;">
+      Your Writer has already made their guess. Make yours now.
+    </p>
+    {% formfield player.guess %}
+  </div>
+</div>
+
+<!-- Hidden input for n_additional_draws — managed by JS -->
+<input type="hidden" name="n_additional_draws" id="n-additional-draws-input" value="0">
+
+<div class="alert alert-light border">
+  <strong>Reminder:</strong>
+  Red Jar has 14 red &amp; 6 blue balls.
+  Blue Jar has 14 blue &amp; 6 red balls.
+  Both jars contain {{ C.N_BALLS }} balls total.
+</div>
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+<script>
+(function () {
+  var nDraws = 0;
+  var maxDraws = {{ C.MAX_ADDITIONAL }};
+  var ballColors  = { R: '#c0392b', B: '#2980b9' };
+  var ballBorders = { R: '#922b21', B: '#1a5276' };
+  var ballLabels  = { R: 'red ball', B: 'blue ball' };
+
+  document.getElementById('draw-btn').addEventListener('click', function () {
+    if (nDraws >= maxDraws) return;
+    nDraws++;
+    var color = document.getElementById('add-ball-' + nDraws).getAttribute('data-color');
+    var span  = document.createElement('span');
+    span.style.cssText = [
+      'display:inline-block',
+      'width:2.4rem',
+      'height:2.4rem',
+      'border-radius:50%',
+      'background:' + ballColors[color],
+      'border:2px solid ' + ballBorders[color],
+    ].join(';');
+    span.setAttribute('aria-label', ballLabels[color]);
+    document.getElementById('revealed-balls').appendChild(span);
+    document.getElementById('n-draws-label').textContent = nDraws;
+    document.getElementById('n-additional-draws-input').value = nDraws;
+    if (nDraws >= maxDraws) {
+      document.getElementById('draw-btn').style.display = 'none';
+      document.getElementById('no-more-text').style.display = 'inline';
+    }
+  });
+}());
+</script>
+
+{% endblock %}
