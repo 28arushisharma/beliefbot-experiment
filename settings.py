@@ -26,6 +26,12 @@ SESSION_CONFIGS = [
         num_demo_participants=2,  # Player 1 = Writer (human), Player 2 = bot Reader (matches 1-2) / human Reader (matches 3-4)
     ),
     dict(
+        name='stage5',
+        display_name='Stage 5 — Writer Chooses Sample',
+        app_sequence=['stage5'],
+        num_demo_participants=2,  # Player 1 = Writer (human), Player 2 = bot Reader (matches 1-2) / human Reader (matches 3-4)
+    ),
+    dict(
         name='jar_beliefs',
         display_name='Jar & Balls: Belief Updating',
         app_sequence=['jar_beliefs'],

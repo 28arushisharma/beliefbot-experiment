@@ -1,0 +1,143 @@
+{% block title %}Match {{ match_number }}, Round {{ round_in_match }} &mdash; Writer's View{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
+    <span class="float-end"><span class="badge bg-secondary">vs reader</span></span>
+  </div>
+</div>
+
+<!-- Full jar -->
+<div class="card mb-4 border-0 shadow-sm">
+  <div class="card-header fw-semibold">
+    Full jar &mdash; all {{ C.N_BALLS }} balls
+    <span class="badge {% if jar == 'Red' %}bg-danger{% else %}bg-primary{% endif %} ms-2">
+      {{ jar }} Jar
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      {% for _ in all_red_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in all_blue_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+    <p class="text-muted mb-0" style="font-size:0.85rem;">You can see all {{ C.N_BALLS }} balls. You know the true jar.</p>
+  </div>
+</div>
+
+<!-- 6 candidate samples — writer clicks to choose -->
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">
+    Choose one sample to send to your reader
+    <span class="text-muted fw-normal" style="font-size:0.85rem;">&mdash; {{ C.N_SAMPLES }} options, each {{ C.SAMPLE_SIZE }} balls</span>
+  </div>
+  <div class="card-body pb-2">
+    <p class="text-muted mb-3" style="font-size:0.9rem;">
+      Each sample below was drawn from the jar. Click a sample to select it.
+      Your reader will see <em>only</em> the sample you choose.
+    </p>
+
+    <div class="row g-2 mb-3" id="samples-grid">
+      {% for s in samples_template %}
+      <div class="col-6 col-md-4">
+        <div class="card sample-card h-100 border-2 border-secondary"
+             data-index="{{ s.index }}"
+             id="sample-card-{{ s.index }}"
+             style="cursor:pointer; transition: box-shadow 0.15s, border-color 0.15s;">
+          <div class="card-header text-center py-1 bg-light" style="font-size:0.82rem;">
+            Sample {{ s.number }}
+          </div>
+          <div class="card-body py-2 text-center">
+            <div class="d-flex flex-wrap gap-1 justify-content-center mb-2">
+              {% for _ in s.red_balls %}
+                <span style="display:inline-block;width:1.7rem;height:1.7rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+              {% endfor %}
+              {% for _ in s.blue_balls %}
+                <span style="display:inline-block;width:1.7rem;height:1.7rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+              {% endfor %}
+            </div>
+            <p class="mb-0" style="font-size:0.8rem;">
+              <span class="text-danger fw-semibold">{{ s.n_red }}R</span>
+              &nbsp;/&nbsp;
+              <span class="text-primary fw-semibold">{{ s.n_blue }}B</span>
+            </p>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="selection-indicator" class="alert alert-success py-2 mb-0" style="display:none; font-size:0.9rem;">
+      <strong id="selection-label"></strong> selected &mdash; your reader will see this sample.
+    </div>
+  </div>
+</div>
+
+<!-- Hidden field for selected_sample_index (managed by JS) -->
+<input type="hidden" name="selected_sample_index" id="selected-sample-index-input" value="-1">
+
+<!-- Guess -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Your guess</div>
+  <div class="card-body">
+    <p class="text-muted mb-3" style="font-size:0.9rem;">
+      Your reader is reviewing the sample and making their own guess independently.
+    </p>
+    {% formfield player.guess %}
+  </div>
+</div>
+
+<div class="alert alert-light border">
+  <strong>Reminder:</strong>
+  Red Jar has 14 red &amp; 6 blue balls.
+  Blue Jar has 14 blue &amp; 6 red balls.
+  Both jars contain {{ C.N_BALLS }} balls total.
+</div>
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+<script>
+(function () {
+  var selectedIdx = -1;
+  var cards = document.querySelectorAll('.sample-card');
+  var hiddenInput = document.getElementById('selected-sample-index-input');
+  var indicator   = document.getElementById('selection-indicator');
+  var label       = document.getElementById('selection-label');
+
+  cards.forEach(function (card) {
+    card.addEventListener('click', function () {
+      cards.forEach(function (c) {
+        c.classList.remove('border-success', 'shadow');
+        c.classList.add('border-secondary');
+        c.querySelector('.card-header').classList.remove('bg-success', 'text-white');
+        c.querySelector('.card-header').classList.add('bg-light');
+      });
+
+      card.classList.remove('border-secondary');
+      card.classList.add('border-success', 'shadow');
+      card.querySelector('.card-header').classList.remove('bg-light');
+      card.querySelector('.card-header').classList.add('bg-success', 'text-white');
+
+      selectedIdx = parseInt(card.getAttribute('data-index'), 10);
+      hiddenInput.value = selectedIdx;
+
+      label.textContent = 'Sample ' + (selectedIdx + 1);
+      indicator.style.display = '';
+    });
+  });
+}());
+</script>
+
+{% endblock %}

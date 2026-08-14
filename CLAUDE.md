@@ -79,8 +79,26 @@ Built in oTree. Uses the `beliefbot` Python library for Bayesian belief updating
 - Cumulative earnings updated: Writer only in bot rounds; both players in human rounds
 - ResultsPage shows Writer how many additional draws Reader requested
 
-## Stages 5-6
-- To be built after Stages 1-4 are complete
+## Stage 5 — Writer Chooses Sample
+- PLAYERS_PER_GROUP = 2; NUM_ROUNDS = 12
+- Player 1 = Writer (sees all 20 balls + 6 candidate samples); Player 2 = Reader (sees chosen sample only)
+- 4 matches × 3 sub-rounds = 12 rounds; 2 jars (jar 1 rounds 1-6, jar 2 rounds 7-12, opposite colours)
+- Matches 1-2 (rounds 1-6): vs computer Reader (bot P2); additional draws FREE
+- Matches 3-4 (rounds 7-12): vs human Reader; additional draws cost $2 each
+- 6 candidate samples generated WITH replacement from the jar; writer clicks to select one
+- Bad computer writer strategy (data only): select sample with highest posterior for WRONG jar (BeliefEngine, lam_disconfirm=0)
+- misleading_sample_index stored on Writer for analysis; does not affect game flow (writer always human)
+- Bot reader: same type assignment as Stage 4 (good/bad per match from session code)
+- Bot reader receives selected sample; uses 0 additional draws; guess computed in WriterPage.before_next_page
+- ReaderWaitPage / ResultsWaitPage / bot-round skip pattern identical to Stage 4
+- Reader draw cost deducted from payoff_this_round in ResultsWaitPage.after_all_players_arrive (human rounds)
+- Writer's selected_sample_index stored as hidden form input (JS sets on click); validated in error_message
+- Additional draws: pre-computed from full 20-ball jar WITHOUT replacement (3 balls, independent of sample choice)
+- Posteriors stored: posterior_red_good (lam_disconfirm=0), posterior_red_bad (lam_disconfirm=0.9)
+- Writer payoff_this_round = base payoff (no draw cost); Reader payoff_this_round = base − draw cost
+
+## Stage 6
+- To be built after Stage 5 is complete
 - See project notes for full design
 
 ## oTree Conventions Used
