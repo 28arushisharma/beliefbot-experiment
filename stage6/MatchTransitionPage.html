@@ -1,0 +1,75 @@
+{% block title %}Match {{ match_number }} &mdash; Starting Now{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">Match {{ prev_match_number }} complete</div>
+  <div class="card-body">
+    <p class="mb-1">
+      Your earnings from Match {{ prev_match_number }}:
+      <strong class="{% if prev_match_net > 0 %}text-success{% else %}text-secondary{% endif %}">
+        ${{ prev_match_net }}
+      </strong>
+    </p>
+    <p class="text-muted mb-0" style="font-size:0.88rem;">
+      Running cumulative total: <strong>${{ cumulative_earnings }}</strong>
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 border-primary shadow-sm">
+  <div class="card-header fw-semibold text-primary">
+    Match {{ match_number }} &mdash; starting now
+  </div>
+  <div class="card-body">
+    {% if is_writer %}
+      <p class="mb-2">
+        You have been matched with a new Reader for Match {{ match_number }}.
+        You will play 3 rounds together.
+      </p>
+      {% if jar_changes %}
+      <div class="alert alert-info mb-2 py-2" style="font-size:0.88rem;">
+        <strong>Jar change:</strong> A new jar will be used for Matches 3 and 4.
+        You will still see all {{ C.N_SAMPLES }} candidate samples each round.
+      </div>
+      {% endif %}
+      <div class="alert alert-danger mb-2 py-2" style="font-size:0.88rem;">
+        <strong>Draw cost:</strong> Your reader pays ${{ draw_cost_display }} for each additional draw
+        they request. This applies in all matches.
+      </div>
+      <div class="alert alert-warning mb-0 py-2" style="font-size:0.88rem;">
+        <strong>Note:</strong> Your Reader may be a real participant or a computer.
+        You will not be told which.
+      </div>
+    {% else %}
+      <p class="mb-2">
+        You have been matched with a new Writer for Match {{ match_number }}.
+        You will play 3 rounds together.
+      </p>
+      {% if jar_changes %}
+      <div class="alert alert-info mb-2 py-2" style="font-size:0.88rem;">
+        <strong>Jar change:</strong> A new jar will be used for Matches 3 and 4.
+      </div>
+      {% endif %}
+      <div class="alert alert-danger mb-2 py-2" style="font-size:0.88rem;">
+        <strong>Draw cost:</strong> Each additional draw you request costs ${{ draw_cost_display }},
+        deducted from your round payoff. This applies in all matches.
+      </div>
+      <div class="alert alert-warning mb-0 py-2" style="font-size:0.88rem;">
+        <strong>Note:</strong> Your Writer may be a real participant or a computer.
+        You will not be told which.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}

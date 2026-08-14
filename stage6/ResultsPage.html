@@ -1,0 +1,117 @@
+{% block title %}Match {{ match_number }}, Round {{ round_in_match }} &mdash; Result{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
+  <span>Cumulative earnings</span>
+  <strong>${{ cumulative_earnings }}</strong>
+</div>
+
+<div class="card mb-3 border-secondary" style="border-style: dashed;">
+  <div class="card-body text-muted" style="font-size: 0.9rem;">
+    <strong>Sample sent to Reader:</strong>
+    <span class="text-danger fw-semibold">{{ n_red_sample }} red</span>
+    &nbsp;/&nbsp;
+    <span class="text-primary fw-semibold">{{ n_blue_sample }} blue</span>
+    ({{ C.SAMPLE_SIZE }} balls, Sample {{ selected_sample_number }})
+    <span class="float-end">Match {{ match_number }}, round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }}</span>
+  </div>
+</div>
+
+<!-- Selected sample display -->
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">
+    Sample sent to Reader
+    {% if is_writer %}<span class="text-muted fw-normal" style="font-size:0.85rem;">&mdash; your choice (Sample {{ selected_sample_number }})</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-2">
+      {% for _ in sample_red_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in sample_blue_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if not is_writer %}
+<!-- Reader: show their additional draws -->
+{% if reader_n_additional_draws > 0 %}
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">
+    Your additional draws ({{ reader_n_additional_draws }})
+    <span class="text-muted fw-normal" style="font-size:0.85rem;">&mdash; cost: ${{ reader_add_cost }}</span>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-2">
+      {% for _ in reader_add_red_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+      {% endfor %}
+      {% for _ in reader_add_blue_balls %}
+        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if is_writer %}
+<div class="card mb-3 shadow-sm">
+  <div class="card-body text-muted" style="font-size:0.9rem;">
+    {% if reader_n_additional_draws == 0 %}
+      Your reader did not request any additional draws.
+    {% else %}
+      Your reader requested {{ reader_n_additional_draws }} additional draw{% if reader_n_additional_draws > 1 %}s{% endif %}
+      (cost: ${{ reader_add_cost }}).
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold">Round result</div>
+  <div class="card-body">
+    <p class="mb-1 text-muted" style="font-size:0.88rem;">
+      The jar used this round has not been revealed.
+    </p>
+    <p class="mb-0">
+      Your payoff this round:
+      <strong class="{% if payoff_this_round > 0 %}text-success{% else %}text-secondary{% endif %}" style="font-size:1.1rem;">
+        ${{ payoff_this_round }}
+      </strong>
+      {% if not is_writer and reader_add_cost > 0 %}
+        <span class="text-muted" style="font-size:0.85rem;">
+          (includes ${{ reader_add_cost }} deduction for additional draws)
+        </span>
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">Running total</div>
+  <div class="card-body">
+    <p class="mb-0">
+      Cumulative earnings so far:
+      <strong class="{% if cumulative_earnings > 0 %}text-success{% else %}text-secondary{% endif %}">
+        ${{ cumulative_earnings }}
+      </strong>
+    </p>
+  </div>
+</div>
+
+{% if is_last_round %}
+<div class="alert alert-info">
+  <strong>Stage 6 complete.</strong>
+  Your total earnings from Stage 6 are included in your cumulative total above.
+</div>
+{% endif %}
+
+<p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
+
+{% next_button %}
+
+{% endblock %}

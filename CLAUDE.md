@@ -97,9 +97,28 @@ Built in oTree. Uses the `beliefbot` Python library for Bayesian belief updating
 - Posteriors stored: posterior_red_good (lam_disconfirm=0), posterior_red_bad (lam_disconfirm=0.9)
 - Writer payoff_this_round = base payoff (no draw cost); Reader payoff_this_round = base − draw cost
 
-## Stage 6
-- To be built after Stage 5 is complete
-- See project notes for full design
+## Stage 6 — Writer Does Not Know Jar; Draws Always Paid
+- PLAYERS_PER_GROUP = 2; NUM_ROUNDS = 12
+- Player 1 = Writer (sees 6 candidate samples ONLY — NOT the full jar); Player 2 = Reader (sees chosen sample only)
+- 4 matches × 3 sub-rounds = 12 rounds; 2 jars (jar 1 rounds 1-6, jar 2 rounds 7-12, opposite colours)
+- Matches 1-2 (rounds 1-6): vs computer Reader (bot P2); additional draws cost $2 each
+- Matches 3-4 (rounds 7-12): vs human Reader; additional draws cost $2 each
+- KEY DIFFERENCE FROM STAGE 5: Writer does NOT see the full 20-ball jar display; writer is told "You do not know which jar the balls are drawn from"
+- KEY DIFFERENCE FROM STAGE 5: Additional draws cost $2 in ALL matches (no free draws at any point)
+- 6 candidate samples generated WITH replacement from the jar; writer clicks to select one
+- Bad computer writer strategy (data only): select sample with highest posterior for WRONG jar (uses true jar from _get_jar for research only)
+- misleading_sample_index stored on Writer for analysis; true jar NOT shown to human Writer
+- Writer's posteriors (posterior_red_good, posterior_red_bad) computed from chosen sample (Bayesian from 50/50 prior), not hardcoded 1.0/0.0
+- Bot reader: same type assignment as Stage 4/5 (good/bad per match from session code)
+- Bot reader receives selected sample; uses 0 additional draws; draw cost = 0; guess computed in WriterPage.before_next_page
+- ReaderWaitPage / ResultsWaitPage / bot-round skip pattern identical to Stages 4 and 5
+- Reader draw cost always deducted from payoff_this_round in ResultsWaitPage.after_all_players_arrive (human rounds)
+- RESULTS PAGE: only payoff revealed — no jar colour, no partner guess, no correct/wrong badge; shows payoff amount + cumulative total + sample display
+- Additional draws in ResultsPage: reader sees their own additional draws; writer sees how many draws reader took
+- Writer's selected_sample_index stored as hidden form input (JS sets on click); validated in error_message
+- Additional draws: pre-computed from full 20-ball jar WITHOUT replacement (3 balls, independent of sample choice)
+- Posteriors stored: posterior_red_good (lam_disconfirm=0), posterior_red_bad (lam_disconfirm=0.9)
+- Writer payoff_this_round = base payoff (no draw cost); Reader payoff_this_round = base − additional_draw_cost (all matches)
 
 ## oTree Conventions Used
 - PLAYERS_PER_GROUP = None for individual stages
