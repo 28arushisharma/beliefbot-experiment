@@ -190,6 +190,7 @@ def _adddraw_vars(player, draw_number):
     n_blue = all_so_far.count('B')
     g, rig, group_start, group_end = _group_context(player.round_number)
     return dict(
+        **_instructions_vars(),
         add_draw_number=draw_number,
         new_ball_is_red=new_ball == 'R',
         new_ball_color='Red' if new_ball == 'R' else 'Blue',
@@ -220,6 +221,20 @@ def _adddraw_store(player, draw_number):
     setattr(player, f'posterior_after_add_{draw_number}', _posterior(all_so_far))
 
 
+# ── Instructions widget ────────────────────────────────────────────────────
+
+def _instructions_vars():
+    return dict(
+        stage_instructions_bullets=[
+            'See 6 balls drawn from a 20-ball jar (without replacement).',
+            'Buy up to 4 extra balls at $2 each; the first extra ball matches the jar majority.',
+            'Guess the jar: earn $5 if correct, $0 if wrong, minus cost of extra balls.',
+            'Net payoff can be negative if you buy many balls and guess wrong.',
+        ],
+        show_payoff_table=False,
+    )
+
+
 # ── Session creation ───────────────────────────────────────────────────────
 
 def creating_session(subsession):
@@ -238,6 +253,7 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
+            **_instructions_vars(),
             draw_cost=DRAW_COST,
             max_balls_total=C.N_INITIAL_DRAWS + C.MAX_ADDITIONAL,
             rounds_per_jar_plus_1=C.ROUNDS_PER_JAR + 1,
@@ -258,6 +274,7 @@ class JarChangePage(Page):
             for r in range(1, C.ROUNDS_PER_JAR + 1)
         ))
         return dict(
+            **_instructions_vars(),
             group1_net=group1_net,
             abs_group1_net=abs(group1_net),
             group1_max_gross=PAYOFF_CORRECT * C.ROUNDS_PER_JAR,
@@ -282,6 +299,7 @@ class DrawPage(Page):
         jar, initial, _ = _compute_all_draws(player.session.code, player.round_number)
         g, rig, group_start, group_end = _group_context(player.round_number)
         return dict(
+            **_instructions_vars(),
             draw_red=initial.count('R'),
             draw_blue=initial.count('B'),
             red_balls=list(range(initial.count('R'))),
@@ -390,6 +408,7 @@ class ChoicePage(Page):
         all_balls = initial + additional[:n]
         g, rig, group_start, group_end = _group_context(player.round_number)
         return dict(
+            **_instructions_vars(),
             draw_red=all_balls.count('R'),
             draw_blue=all_balls.count('B'),
             red_balls=list(range(all_balls.count('R'))),
@@ -435,6 +454,7 @@ class ResultsPage(Page):
         ))
         net = int(player.net_payoff)
         return dict(
+            **_instructions_vars(),
             draw_red=all_balls.count('R'),
             draw_blue=all_balls.count('B'),
             red_balls=list(range(all_balls.count('R'))),

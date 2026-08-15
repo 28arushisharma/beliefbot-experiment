@@ -128,6 +128,20 @@ def _posterior_red(session_code: str, round_number: int) -> float:
     return float(engine.belief[1])
 
 
+# ── Instructions widget ────────────────────────────────────────────────────
+
+def _instructions_vars():
+    return dict(
+        stage_instructions_bullets=[
+            'Observe 6 balls drawn from a 20-ball jar (with replacement).',
+            'Guess: Red Jar (14 red, 6 blue) or Blue Jar (14 blue, 6 red)?',
+            'Rounds 1–3 use one jar; rounds 4–6 switch to the opposite jar.',
+            'Earn $5 per correct guess, $0 for wrong.',
+        ],
+        show_payoff_table=False,
+    )
+
+
 # ── Session creation ───────────────────────────────────────────────────────
 
 def creating_session(subsession: Subsession):
@@ -150,6 +164,7 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player: Player):
         return dict(
+            **_instructions_vars(),
             rounds_per_jar_plus_1=C.ROUNDS_PER_JAR + 1,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
@@ -169,6 +184,7 @@ class JarChangePage(Page):
             for r in range(1, C.ROUNDS_PER_JAR + 1)
         ))
         return dict(
+            **_instructions_vars(),
             group1_total          = group1_total,
             group1_max            = PAYOFF_CORRECT * C.ROUNDS_PER_JAR,
             rounds_per_jar_plus_1 = C.ROUNDS_PER_JAR + 1,
@@ -186,6 +202,7 @@ class IntroPage(Page):
         group_start    = 1 if group == 1 else C.ROUNDS_PER_JAR + 1
         group_end      = C.ROUNDS_PER_JAR if group == 1 else C.NUM_ROUNDS
         return dict(
+            **_instructions_vars(),
             draw_red    = k_red,
             draw_blue   = k_blue,
             red_balls   = list(range(k_red)),
@@ -218,6 +235,7 @@ class ChoicePage(Page):
     def vars_for_template(player: Player):
         k_red, k_blue = _get_draw(player.session.code, player.round_number)
         return dict(
+            **_instructions_vars(),
             draw_red   = k_red,
             draw_blue  = k_blue,
             red_balls  = list(range(k_red)),
@@ -254,6 +272,7 @@ class ResultsPage(Page):
             for r in range(group_start, player.round_number + 1)
         ))
         return dict(
+            **_instructions_vars(),
             draw_red           = k_red,
             draw_blue          = k_blue,
             red_balls          = list(range(k_red)),

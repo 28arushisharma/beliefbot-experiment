@@ -231,6 +231,24 @@ def _assign_payoffs(p1, p2, jar):
         p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
 
 
+# ── Instructions widget ───────────────────────────────────────────────────────
+
+def _instructions_vars():
+    return dict(
+        stage_instructions_bullets=[
+            'Writer does NOT know the jar — sees 6 candidate samples only.',
+            'Writer chooses one sample to send; Reader may draw up to 3 extra balls ($2 each).',
+            'Results reveal payoffs only — jar colour and partner\'s guess are not shown.',
+            'Payoffs depend on both players\' jar guesses — see the payoff table.',
+        ],
+        show_payoff_table=True,
+        payoff_both_correct=PAYOFF_BOTH_CORRECT,
+        payoff_both_wrong=PAYOFF_BOTH_WRONG,
+        payoff_one_correct=PAYOFF_ONE_CORRECT,
+        payoff_one_wrong=PAYOFF_ONE_WRONG,
+    )
+
+
 # ── Session creation ──────────────────────────────────────────────────────────
 
 def creating_session(subsession):
@@ -258,6 +276,7 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
+            **_instructions_vars(),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
             draw_cost_display=int(C.DRAW_COST_PER_BALL),
         )
@@ -281,6 +300,7 @@ class MatchTransitionPage(Page):
         ))
         jar_changes = (player.round_number == 7)
         return dict(
+            **_instructions_vars(),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
@@ -324,6 +344,7 @@ class WriterPage(Page):
             ))
 
         return dict(
+            **_instructions_vars(),
             samples_template=samples_template,
             match_number=_match_number(player.round_number),
             round_in_match=_round_in_match(player.round_number),
@@ -386,6 +407,10 @@ class WriterPage(Page):
 class ReaderWaitPage(WaitPage):
     """Reader waits for Writer to submit. Skipped in bot rounds."""
     @staticmethod
+    def vars_for_template(player):
+        return _instructions_vars()
+
+    @staticmethod
     def is_displayed(player):
         return not _is_bot_match(player.round_number) and _is_reader(player)
 
@@ -413,6 +438,7 @@ class ReaderPage(Page):
         k_blue_s = sample.count('B')
         all_add  = _get_all_additional_draws(player.session.code, player.round_number)
         return dict(
+            **_instructions_vars(),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
             n_red_sample=k_red_s,
@@ -451,6 +477,10 @@ class ReaderPage(Page):
 
 
 class ResultsWaitPage(WaitPage):
+    @staticmethod
+    def vars_for_template(player):
+        return _instructions_vars()
+
     @staticmethod
     def is_displayed(player):
         return not _is_bot_match(player.round_number)
@@ -499,6 +529,7 @@ class ResultsPage(Page):
         add_blue  = [b for b in add_balls if b == 'B']
 
         return dict(
+            **_instructions_vars(),
             match_number=match,
             round_in_match=rig,
             is_writer=_is_writer(player),

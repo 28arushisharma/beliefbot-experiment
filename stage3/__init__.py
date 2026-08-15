@@ -131,6 +131,24 @@ def _posterior(draw_red):
     return float(engine.belief[1])
 
 
+# ── Instructions widget ───────────────────────────────────────────────────────
+
+def _instructions_vars():
+    return dict(
+        stage_instructions_bullets=[
+            'Matches 1–2: vs computer partner. Matches 3–4: vs human partner.',
+            'Observe 10 balls drawn from a shared jar (same jar for all 12 rounds).',
+            'You and your partner each guess the jar independently.',
+            'Payoffs depend on both guesses — see the payoff table.',
+        ],
+        show_payoff_table=True,
+        payoff_both_correct=PAYOFF_BOTH_CORRECT,
+        payoff_both_wrong=PAYOFF_BOTH_WRONG,
+        payoff_one_correct=PAYOFF_ONE_CORRECT,
+        payoff_one_wrong=PAYOFF_ONE_WRONG,
+    )
+
+
 # ── Session creation ──────────────────────────────────────────────────────────
 
 def creating_session(subsession):
@@ -154,6 +172,7 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
+            **_instructions_vars(),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -179,6 +198,7 @@ class MatchTransitionPage(Page):
                 for r in range(prev_start, prev_end + 1)
             ))
         return dict(
+            **_instructions_vars(),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
@@ -196,6 +216,7 @@ class DrawPage(Page):
     def vars_for_template(player):
         draw_red, draw_blue = _get_draw(player.session.code, player.round_number)
         return dict(
+            **_instructions_vars(),
             draw_red=draw_red,
             draw_blue=draw_blue,
             red_balls=list(range(draw_red)),
@@ -224,6 +245,7 @@ class ChoicePage(Page):
     def vars_for_template(player):
         draw_red, draw_blue = _get_draw(player.session.code, player.round_number)
         return dict(
+            **_instructions_vars(),
             draw_red=draw_red,
             draw_blue=draw_blue,
             red_balls=list(range(draw_red)),
@@ -276,6 +298,10 @@ class ChoicePage(Page):
 
 
 class ResultsWaitPage(WaitPage):
+    @staticmethod
+    def vars_for_template(player):
+        return _instructions_vars()
+
     @staticmethod
     def is_displayed(player):
         # Bot rounds (1-6): WaitPage is skipped for all players.
@@ -338,6 +364,7 @@ class ResultsPage(Page):
         match   = _match_number(player.round_number)
         rig     = _round_in_match(player.round_number)
         return dict(
+            **_instructions_vars(),
             draw_red=player.group.draw_red,
             draw_blue=player.group.draw_blue,
             red_balls=list(range(player.group.draw_red)),

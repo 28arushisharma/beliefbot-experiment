@@ -188,6 +188,24 @@ def _assign_payoffs(p1, p2, jar):
         p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
 
 
+# ── Instructions widget ───────────────────────────────────────────────────────
+
+def _instructions_vars():
+    return dict(
+        stage_instructions_bullets=[
+            'Writer sees all 20 balls and the 6-ball sample sent to Reader.',
+            'Reader sees the sample only; may request up to 3 extra draws (free, all matches).',
+            'Matches 1–2: vs computer Reader. Matches 3–4: vs human Reader.',
+            'Payoffs depend on both players\' jar guesses — see the payoff table.',
+        ],
+        show_payoff_table=True,
+        payoff_both_correct=PAYOFF_BOTH_CORRECT,
+        payoff_both_wrong=PAYOFF_BOTH_WRONG,
+        payoff_one_correct=PAYOFF_ONE_CORRECT,
+        payoff_one_wrong=PAYOFF_ONE_WRONG,
+    )
+
+
 # ── Session creation ──────────────────────────────────────────────────────────
 
 def creating_session(subsession):
@@ -217,6 +235,7 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
+            **_instructions_vars(),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -243,6 +262,7 @@ class MatchTransitionPage(Page):
             ))
         jar_changes = (player.round_number == 7)  # jar flips at match 3
         return dict(
+            **_instructions_vars(),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
@@ -275,6 +295,7 @@ class WriterPage(Page):
         k_red_s  = sample.count('R')
         k_blue_s = sample.count('B')
         return dict(
+            **_instructions_vars(),
             jar=jar,
             all_red_balls=list(range(n_red)),
             all_blue_balls=list(range(n_blue)),
@@ -337,6 +358,10 @@ class ReaderWaitPage(WaitPage):
     P1 has is_displayed=False in human rounds and passes instantly, releasing P2.
     """
     @staticmethod
+    def vars_for_template(player):
+        return _instructions_vars()
+
+    @staticmethod
     def is_displayed(player):
         # Human rounds only; Reader waits, Writer passes instantly
         return not _is_bot_match(player.round_number) and _is_reader(player)
@@ -363,6 +388,7 @@ class ReaderPage(Page):
         k_blue_s  = sample.count('B')
         all_add   = _get_all_additional_draws(player.session.code, player.round_number)
         return dict(
+            **_instructions_vars(),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
             n_red_sample=k_red_s,
@@ -391,6 +417,10 @@ class ReaderPage(Page):
 
 
 class ResultsWaitPage(WaitPage):
+    @staticmethod
+    def vars_for_template(player):
+        return _instructions_vars()
+
     @staticmethod
     def is_displayed(player):
         # Bot rounds (1-6): skipped; results computed in WriterPage.before_next_page
@@ -444,6 +474,7 @@ class ResultsPage(Page):
         reader_add_red  = [b for b in reader_add_balls if b == 'R']
         reader_add_blue = [b for b in reader_add_balls if b == 'B']
         return dict(
+            **_instructions_vars(),
             jar_assignment=player.jar_assignment,
             match_number=match,
             round_in_match=rig,
