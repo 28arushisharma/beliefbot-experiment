@@ -1,5 +1,9 @@
 from os import environ
 
+environ.setdefault('DATABASE_URL', 'sqlite:///db.sqlite3')
+
+OTREE_PRODUCTION = 0
+
 SESSION_CONFIGS = [
     dict(
         name='stage1',
@@ -42,6 +46,12 @@ SESSION_CONFIGS = [
         display_name='Jar & Balls: Belief Updating',
         app_sequence=['jar_beliefs'],
         num_demo_participants=2,  # Player 1 = human, Player 2 = computational bot
+    ),
+    dict(
+        name='full_experiment',
+        display_name='Full Experiment (Stages 1–6)',
+        app_sequence=['stage1', 'stage2', 'stage3', 'stage_break', 'stage4', 'stage5', 'stage6'],
+        num_demo_participants=2,
     ),
 ]
 

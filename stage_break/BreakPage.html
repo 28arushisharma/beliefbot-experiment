@@ -1,0 +1,22 @@
+{% block title %}End of Part 1{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm mx-auto" style="max-width: 560px; margin-top: 3rem;">
+  <div class="card-body text-center py-5 px-4">
+    <div class="mb-4" style="font-size: 2.5rem;">&#9203;</div>
+    <h4 class="mb-3">Thank you for completing Part 1</h4>
+    <p class="text-muted mb-0" style="font-size: 1.05rem;">
+      This concludes the first part of the experiment.
+      Please wait for further instructions from the experimenter.
+    </p>
+  </div>
+</div>
+
+<p class="text-center text-muted mt-4" style="font-size:0.85rem;">
+  <em>Do not close this window or refresh the page.</em>
+</p>
+
+{% include '_base_instructions.html' %}
+
+{% endblock %}
