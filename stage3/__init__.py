@@ -8,7 +8,8 @@ doc = """
 Stage 3 — Conformity (Coordination Game).
 
 12 rounds: 4 matches × 3 sub-rounds each.
-One jar for all 12 rounds (Red or Blue, assigned from session code).
+The jar changes between every match: each match gets a new, independently randomly
+assigned jar (Red or Blue), fixed for that match's 3 sub-rounds.
 10 balls drawn per sub-round with replacement.
 
 Matches 1-2 (rounds 1-6):  vs computer bot (fixed random choice).
@@ -73,8 +74,8 @@ class Player(BasePlayer):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _seed_jar(session_code):
-    return abs(hash((session_code, 'stage3_jar'))) % (2 ** 31)
+def _seed_jar(session_code, match_number):
+    return abs(hash((session_code, 'stage3_jar', match_number))) % (2 ** 31)
 
 def _seed_draw(session_code, round_number):
     return abs(hash((session_code, 'stage3_draw', round_number))) % (2 ** 31)
@@ -83,15 +84,23 @@ def _seed_bot(session_code, group_id):
     return abs(hash((session_code, 'stage3_bot', group_id))) % (2 ** 31)
 
 
-def _get_jar(session_code):
-    """Single jar for all 12 rounds, determined by session code."""
-    rng = np.random.default_rng(_seed_jar(session_code))
+def _get_jar(session_code, match_number):
+    """Jar for a given match: independently randomly assigned per match."""
+    rng = np.random.default_rng(_seed_jar(session_code, match_number))
     return 'Red' if rng.integers(0, 2) == 0 else 'Blue'
+
+
+def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
+    """Deterministic per-round shuffle so red/blue balls display in mixed order."""
+    colors = ['R'] * n_red + ['B'] * n_blue
+    seed = abs(hash((session_code, salt, round_number, n_red, n_blue))) % (2 ** 31)
+    np.random.default_rng(seed).shuffle(colors)
+    return colors
 
 
 def _get_draw(session_code, round_number):
     """Return (draw_red, draw_blue) for N_DRAWS with-replacement draws."""
-    jar   = _get_jar(session_code)
+    jar   = _get_jar(session_code, _match_number(round_number))
     rng   = np.random.default_rng(_seed_draw(session_code, round_number))
     n_red = C.RED_JAR_RED if jar == 'Red' else C.BLUE_JAR_RED
     k_red = int(rng.hypergeometric(n_red, C.N_BALLS - n_red, C.N_DRAWS))
@@ -137,7 +146,7 @@ def _instructions_vars():
     return dict(
         stage_instructions_bullets=[
             'Matches 1–2: vs computer partner. Matches 3–4: vs human partner.',
-            'Observe 10 balls drawn from a shared jar (same jar for all 12 rounds).',
+            'Observe 10 balls drawn from a shared jar (a new jar is randomly assigned each match).',
             'You and your partner each guess the jar independently.',
             'Payoffs depend on both guesses — see the payoff table.',
         ],
@@ -153,7 +162,7 @@ def _instructions_vars():
 
 def creating_session(subsession):
     for player in subsession.get_players():
-        player.jar_assignment = _get_jar(player.session.code)
+        player.jar_assignment = _get_jar(player.session.code, _match_number(subsession.round_number))
         if subsession.round_number == 1 and player.id_in_group == 2:
             bot_choice = _get_bot_choice(
                 subsession.session.code,
@@ -219,8 +228,7 @@ class DrawPage(Page):
             **_instructions_vars(),
             draw_red=draw_red,
             draw_blue=draw_blue,
-            red_balls=list(range(draw_red)),
-            blue_balls=list(range(draw_blue)),
+            ball_order=_shuffled_ball_order(player.session.code, 'stage3_draw_page', player.round_number, draw_red, draw_blue),
             match_number=_match_number(player.round_number),
             round_in_match=_round_in_match(player.round_number),
             is_bot_match=_is_bot_match(player.round_number),
@@ -248,8 +256,7 @@ class ChoicePage(Page):
             **_instructions_vars(),
             draw_red=draw_red,
             draw_blue=draw_blue,
-            red_balls=list(range(draw_red)),
-            blue_balls=list(range(draw_blue)),
+            ball_order=_shuffled_ball_order(player.session.code, 'stage3_choice_page', player.round_number, draw_red, draw_blue),
             match_number=_match_number(player.round_number),
             round_in_match=_round_in_match(player.round_number),
             is_bot_match=_is_bot_match(player.round_number),
@@ -265,7 +272,7 @@ class ChoicePage(Page):
             return
 
         p2  = player.group.get_player_by_id(2)
-        jar = _get_jar(player.session.code)
+        jar = _get_jar(player.session.code, _match_number(player.round_number))
         draw_red, draw_blue = _get_draw(player.session.code, player.round_number)
 
         player.group.draw_red         = draw_red
@@ -315,7 +322,7 @@ class ResultsWaitPage(WaitPage):
         # Only called in human rounds (7-12).
         p1  = group.get_player_by_id(1)
         p2  = group.get_player_by_id(2)
-        jar = _get_jar(group.session.code)
+        jar = _get_jar(group.session.code, _match_number(group.round_number))
         draw_red, draw_blue = _get_draw(group.session.code, group.round_number)
 
         group.draw_red         = draw_red
@@ -365,20 +372,35 @@ class ResultsPage(Page):
         rig     = _round_in_match(player.round_number)
         return dict(
             **_instructions_vars(),
-            draw_red=player.group.draw_red,
-            draw_blue=player.group.draw_blue,
-            red_balls=list(range(player.group.draw_red)),
-            blue_balls=list(range(player.group.draw_blue)),
-            jar_assignment=player.jar_assignment,
             match_number=match,
             round_in_match=rig,
             is_bot_match=_is_bot_match(player.round_number),
-            guess=player.guess,
-            is_correct=player.is_correct,
-            payoff_this_round=int(player.payoff_this_round),
             partner_guess=partner.guess,
-            partner_is_correct=partner.is_correct,
-            is_last_round=player.round_number == C.NUM_ROUNDS,
+            cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
+        )
+
+
+class MatchSummaryPage(Page):
+    """Shown at the end of each match (rounds 3, 6, 9, 12): reveals this match's total payoff."""
+
+    @staticmethod
+    def is_displayed(player):
+        return _round_in_match(player.round_number) == C.ROUNDS_PER_MATCH and not _is_bot_player(player)
+
+    @staticmethod
+    def vars_for_template(player):
+        match       = _match_number(player.round_number)
+        match_start = _match_start_round(match)
+        match_total = int(sum(
+            player.in_round(r).payoff_this_round
+            for r in range(match_start, player.round_number + 1)
+        ))
+        return dict(
+            **_instructions_vars(),
+            match_number=match,
+            match_total=match_total,
+            is_vs_human=not _is_bot_match(player.round_number),
+            is_last_match=match == C.NUM_MATCHES,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -390,4 +412,5 @@ page_sequence = [
     ChoicePage,
     ResultsWaitPage,
     ResultsPage,
+    MatchSummaryPage,
 ]

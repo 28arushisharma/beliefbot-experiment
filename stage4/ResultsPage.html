@@ -23,11 +23,12 @@
   <div class="card-header fw-semibold">Sample (shown to Reader)</div>
   <div class="card-body">
     <div class="d-flex flex-wrap gap-2">
-      {% for _ in sample_red_balls %}
-        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
-      {% endfor %}
-      {% for _ in sample_blue_balls %}
-        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% for c in sample_ball_order %}
+        {% if c == 'R' %}
+          <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+        {% else %}
+          <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+        {% endif %}
       {% endfor %}
     </div>
   </div>
@@ -40,11 +41,12 @@
   <div class="card-header fw-semibold">Your additional draws ({{ reader_n_additional_draws }})</div>
   <div class="card-body">
     <div class="d-flex flex-wrap gap-2">
-      {% for _ in reader_add_red_balls %}
-        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
-      {% endfor %}
-      {% for _ in reader_add_blue_balls %}
-        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% for c in reader_add_ball_order %}
+        {% if c == 'R' %}
+          <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+        {% else %}
+          <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+        {% endif %}
       {% endfor %}
     </div>
   </div>
@@ -57,13 +59,6 @@
   <div class="card-body">
     <table class="table table-sm table-borderless w-auto mb-0">
       <tbody>
-        <tr>
-          <td class="pe-4 text-muted">The jar was</td>
-          <td class="fw-semibold {% if jar_assignment == 'Red' %}text-danger{% else %}text-primary{% endif %}">
-            {{ jar_assignment }} Jar
-            ({% if jar_assignment == 'Red' %}14 red, 6 blue{% else %}14 blue, 6 red{% endif %})
-          </td>
-        </tr>
         <tr>
           <td class="pe-4 text-muted">Your guess</td>
           <td class="fw-semibold {% if guess == 'Red' %}text-danger{% else %}text-primary{% endif %}">
@@ -128,7 +123,7 @@
           </td>
           <td class="text-center text-muted">
             {% if partner_is_correct %}${{ C.PAYOFF_ONE_CORRECT }}{% if is_correct %}&nbsp;→&nbsp;${{ C.PAYOFF_BOTH_CORRECT }}{% endif %}
-            {% else %}${{ C.PAYOFF_ONE_WRONG }}{% if not is_correct %}&nbsp;→&nbsp;${{ C.PAYOFF_BOTH_WRONG }}{% endif %}
+            {% else %}${{ C.PAYOFF_ONE_WRONG }}{% if not is_correct %}&nbsp;→&nbsp;${{ payoff_both_wrong }}{% endif %}
             {% endif %}
           </td>
         </tr>

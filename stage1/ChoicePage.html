@@ -11,25 +11,26 @@
   <div class="card-body" style="font-size: 0.9rem;">
     <strong>Draw this round:</strong>
     &nbsp;
-    {% for _ in red_balls %}
-      <span style="
-        display: inline-block;
-        width: 1.5rem; height: 1.5rem;
-        border-radius: 50%;
-        background: #c0392b;
-        border: 2px solid #922b21;
-        vertical-align: middle;
-      "></span>
-    {% endfor %}
-    {% for _ in blue_balls %}
-      <span style="
-        display: inline-block;
-        width: 1.5rem; height: 1.5rem;
-        border-radius: 50%;
-        background: #2980b9;
-        border: 2px solid #1a5276;
-        vertical-align: middle;
-      "></span>
+    {% for c in ball_order %}
+      {% if c == 'R' %}
+        <span style="
+          display: inline-block;
+          width: 1.5rem; height: 1.5rem;
+          border-radius: 50%;
+          background: #c0392b;
+          border: 2px solid #922b21;
+          vertical-align: middle;
+        "></span>
+      {% else %}
+        <span style="
+          display: inline-block;
+          width: 1.5rem; height: 1.5rem;
+          border-radius: 50%;
+          background: #2980b9;
+          border: 2px solid #1a5276;
+          vertical-align: middle;
+        "></span>
+      {% endif %}
     {% endfor %}
     &nbsp;
     <span class="text-muted">

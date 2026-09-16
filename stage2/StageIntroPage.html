@@ -2,11 +2,6 @@
 
 {% block content %}
 
-<div class="alert alert-secondary d-flex justify-content-between align-items-center mb-3">
-  <span>Cumulative earnings</span>
-  <strong>${{ cumulative_earnings }}</strong>
-</div>
-
 <div class="alert alert-warning" role="alert">
   <strong>Important:</strong> Do <em>not</em> refresh or close this page during the experiment.
   Doing so may cause you to lose your progress and earnings.
@@ -66,8 +61,10 @@
         <strong>Red Jar</strong> or <strong>Blue Jar</strong>.
       </li>
       <li>
-        Correct guess: <strong class="text-success">${{ C.PAYOFF_CORRECT }}</strong>.
-        Wrong guess: <strong class="text-danger">$0</strong>.
+        Correct guess: <strong class="text-success">${{ C.PAYOFF_CORRECT }}</strong> (all rounds).
+        Wrong guess: <strong class="text-danger">${{ C.PAYOFF_WRONG_GROUP1 }}</strong> in Rounds
+        1&ndash;{{ C.ROUNDS_PER_JAR }}, <strong class="text-danger">&minus;${{ abs_payoff_wrong_group2 }}</strong>
+        in Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }}.
         Your <strong>net earnings</strong> = payoff &minus; cost of extra balls purchased.
       </li>
     </ol>

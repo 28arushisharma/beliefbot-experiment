@@ -24,11 +24,12 @@
   </div>
   <div class="card-body">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-      {% for _ in all_red_balls %}
-        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
-      {% endfor %}
-      {% for _ in all_blue_balls %}
-        <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+      {% for c in all_ball_order %}
+        {% if c == 'R' %}
+          <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+        {% else %}
+          <span style="display:inline-block;width:2.1rem;height:2.1rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+        {% endif %}
       {% endfor %}
     </div>
     <p class="text-muted mb-0" style="font-size:0.85rem;">You can see all {{ C.N_BALLS }} balls. You know the true jar.</p>
@@ -59,11 +60,12 @@
           </div>
           <div class="card-body py-2 text-center">
             <div class="d-flex flex-wrap gap-1 justify-content-center mb-2">
-              {% for _ in s.red_balls %}
-                <span style="display:inline-block;width:1.7rem;height:1.7rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
-              {% endfor %}
-              {% for _ in s.blue_balls %}
-                <span style="display:inline-block;width:1.7rem;height:1.7rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+              {% for c in s.ball_order %}
+                {% if c == 'R' %}
+                  <span style="display:inline-block;width:1.7rem;height:1.7rem;border-radius:50%;background:#c0392b;border:2px solid #922b21;" aria-label="red ball"></span>
+                {% else %}
+                  <span style="display:inline-block;width:1.7rem;height:1.7rem;border-radius:50%;background:#2980b9;border:2px solid #1a5276;" aria-label="blue ball"></span>
+                {% endif %}
               {% endfor %}
             </div>
             <p class="mb-0" style="font-size:0.8rem;">

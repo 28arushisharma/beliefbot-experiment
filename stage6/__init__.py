@@ -28,13 +28,16 @@ Bad  bot reader: Biased  (lam_confirm=0, lam_disconfirm=0.9) → guesses opposit
 
 Payoffs per sub-round:
   Both correct:  $30
-  Both wrong:    $20
+  Both wrong:    $0
   One correct:   $10 for correct / $0 for wrong
   Reader's net payoff = base payoff − additional draw cost (all matches).
+
+A FinalPage is shown at the very end of the stage with total cumulative earnings
+and a thank-you message.
 """
 
 PAYOFF_BOTH_CORRECT = 30
-PAYOFF_BOTH_WRONG   = 20
+PAYOFF_BOTH_WRONG   = 0
 PAYOFF_ONE_CORRECT  = 10
 PAYOFF_ONE_WRONG    = 0
 DRAW_COST_PER_BALL  = 2.0  # ALL matches (no free draws)
@@ -155,6 +158,14 @@ def _get_all_additional_draws(session_code, round_number):
 def _get_bot_reader_type(session_code, group_id, match_number):
     rng = np.random.default_rng(_seed_bot_reader_type(session_code, group_id, match_number))
     return 'good' if rng.integers(0, 2) == 0 else 'bad'
+
+
+def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
+    """Deterministic per-round shuffle so red/blue balls display in mixed order."""
+    colors = ['R'] * n_red + ['B'] * n_blue
+    seed = abs(hash((session_code, salt, round_number, n_red, n_blue))) % (2 ** 31)
+    np.random.default_rng(seed).shuffle(colors)
+    return colors
 
 
 # ── Round / match helpers ─────────────────────────────────────────────────────
@@ -334,13 +345,13 @@ class WriterPage(Page):
         samples_template = []
         for i, sample in enumerate(samples):
             kr = sample.count('R')
+            kb = C.SAMPLE_SIZE - kr
             samples_template.append(dict(
                 index      = i,
                 number     = i + 1,   # 1-based label; avoids |add:1 filter in template
                 n_red      = kr,
-                n_blue     = C.SAMPLE_SIZE - kr,
-                red_balls  = list(range(kr)),
-                blue_balls = list(range(C.SAMPLE_SIZE - kr)),
+                n_blue     = kb,
+                ball_order = _shuffled_ball_order(player.session.code, f'stage6_writer_sample_{i}', player.round_number, kr, kb),
             ))
 
         return dict(
@@ -441,6 +452,7 @@ class ReaderPage(Page):
             **_instructions_vars(),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage6_reader_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             additional_ball_1=all_add[0],
@@ -537,13 +549,32 @@ class ResultsPage(Page):
             selected_sample_number=sel_idx + 1,  # 1-based; avoids |add:1 filter in template
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage6_results_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             reader_n_additional_draws=n_add,
             reader_add_cost=int(reader.additional_draw_cost),
             reader_add_red_balls=list(range(len(add_red))),
             reader_add_blue_balls=list(range(len(add_blue))),
+            reader_add_ball_order=_shuffled_ball_order(
+                player.session.code, 'stage6_results_add', player.round_number,
+                len(add_red), len(add_blue),
+            ),
             is_last_round=player.round_number == C.NUM_ROUNDS,
+            cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
+        )
+
+
+class FinalPage(Page):
+    """Shown once at the very end of Stage 6 with total cumulative earnings."""
+
+    @staticmethod
+    def is_displayed(player):
+        return player.round_number == C.NUM_ROUNDS
+
+    @staticmethod
+    def vars_for_template(player):
+        return dict(
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -556,4 +587,5 @@ page_sequence = [
     ReaderPage,
     ResultsWaitPage,
     ResultsPage,
+    FinalPage,
 ]

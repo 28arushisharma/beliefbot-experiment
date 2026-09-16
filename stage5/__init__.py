@@ -112,6 +112,14 @@ def _seed_bot_reader_type(session_code, group_id, match_number):
     return abs(hash((session_code, 'stage5_bot_reader', group_id, match_number))) % (2 ** 31)
 
 
+def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
+    """Deterministic per-round shuffle so red/blue balls display in mixed order."""
+    colors = ['R'] * n_red + ['B'] * n_blue
+    seed = abs(hash((session_code, salt, round_number, n_red, n_blue))) % (2 ** 31)
+    np.random.default_rng(seed).shuffle(colors)
+    return colors
+
+
 # ── Jar / draw helpers ────────────────────────────────────────────────────────
 
 def _get_jar(session_code, round_number):
@@ -334,20 +342,19 @@ class WriterPage(Page):
         samples_template = []
         for i, sample in enumerate(samples):
             kr = sample.count('R')
+            kb = C.SAMPLE_SIZE - kr
             samples_template.append(dict(
                 index      = i,
                 number     = i + 1,   # 1-based label; avoids |add:1 filter in template
                 n_red      = kr,
-                n_blue     = C.SAMPLE_SIZE - kr,
-                red_balls  = list(range(kr)),
-                blue_balls = list(range(C.SAMPLE_SIZE - kr)),
+                n_blue     = kb,
+                ball_order = _shuffled_ball_order(player.session.code, f'stage5_writer_sample_{i}', player.round_number, kr, kb),
             ))
 
         return dict(
             **_instructions_vars(),
             jar=jar,
-            all_red_balls=list(range(n_red)),
-            all_blue_balls=list(range(n_blue)),
+            all_ball_order=_shuffled_ball_order(player.session.code, 'stage5_writer_all', player.round_number, n_red, n_blue),
             samples_template=samples_template,
             match_number=_match_number(player.round_number),
             round_in_match=_round_in_match(player.round_number),
@@ -443,6 +450,7 @@ class ReaderPage(Page):
             **_instructions_vars(),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage5_reader_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             additional_ball_1=all_add[0],
@@ -535,7 +543,6 @@ class ResultsPage(Page):
 
         return dict(
             **_instructions_vars(),
-            jar_assignment=player.jar_assignment,
             match_number=match,
             round_in_match=rig,
             is_bot_match=_is_bot_match(player.round_number),
@@ -549,12 +556,17 @@ class ResultsPage(Page):
             selected_sample_number=sel_idx + 1,  # 1-based; avoids |add:1 filter in template
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage5_results_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             reader_n_additional_draws=n_add,
             reader_add_cost=int(reader.additional_draw_cost),
             reader_add_red_balls=list(range(len(add_red))),
             reader_add_blue_balls=list(range(len(add_blue))),
+            reader_add_ball_order=_shuffled_ball_order(
+                player.session.code, 'stage5_results_add', player.round_number,
+                len(add_red), len(add_blue),
+            ),
             is_paid_draws=match > C.BOT_MATCHES,
             is_last_round=player.round_number == C.NUM_ROUNDS,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),

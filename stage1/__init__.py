@@ -72,6 +72,14 @@ def _seed(session_code: str) -> int:
     return abs(hash(session_code)) % (2 ** 31)
 
 
+def _shuffled_ball_order(session_code: str, salt: str, round_number: int, n_red: int, n_blue: int):
+    """Deterministic per-round shuffle so red/blue balls display in mixed order."""
+    colors = ['R'] * n_red + ['B'] * n_blue
+    seed = abs(hash((session_code, salt, round_number, n_red, n_blue))) % (2 ** 31)
+    np.random.default_rng(seed).shuffle(colors)
+    return colors
+
+
 def _jar_group(round_number: int) -> int:
     """Return 1 for rounds 1-3, 2 for rounds 4-6."""
     return 1 if round_number <= C.ROUNDS_PER_JAR else 2
@@ -205,8 +213,7 @@ class IntroPage(Page):
             **_instructions_vars(),
             draw_red    = k_red,
             draw_blue   = k_blue,
-            red_balls   = list(range(k_red)),
-            blue_balls  = list(range(k_blue)),
+            ball_order  = _shuffled_ball_order(player.session.code, 'stage1_intro', player.round_number, k_red, k_blue),
             group_start = group_start,
             group_end   = group_end,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
@@ -238,8 +245,7 @@ class ChoicePage(Page):
             **_instructions_vars(),
             draw_red   = k_red,
             draw_blue  = k_blue,
-            red_balls  = list(range(k_red)),
-            blue_balls = list(range(k_blue)),
+            ball_order = _shuffled_ball_order(player.session.code, 'stage1_choice', player.round_number, k_red, k_blue),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 

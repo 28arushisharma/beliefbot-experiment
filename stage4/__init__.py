@@ -21,14 +21,17 @@ Bad  bot reader: Biased  (lam_confirm=0, lam_disconfirm=0.9) → guesses opposit
 
 Payoffs per sub-round:
   Both correct:  $30
-  Both wrong:    $20
+  Both wrong:    $0  in computer matches (rounds 1-6), $20 in human matches (rounds 7-12)
   One correct:   $10 for correct / $0 for wrong
+
+ResultsPage does not reveal the true jar colour.
 """
 
-PAYOFF_BOTH_CORRECT = 30
-PAYOFF_BOTH_WRONG   = 20
-PAYOFF_ONE_CORRECT  = 10
-PAYOFF_ONE_WRONG    = 0
+PAYOFF_BOTH_CORRECT       = 30
+PAYOFF_BOTH_WRONG_COMPUTER = 0
+PAYOFF_BOTH_WRONG_HUMAN    = 20
+PAYOFF_ONE_CORRECT        = 10
+PAYOFF_ONE_WRONG          = 0
 
 
 class C(BaseConstants):
@@ -48,10 +51,11 @@ class C(BaseConstants):
     BLUE_JAR_RED  = 6
     BLUE_JAR_BLUE = 14
 
-    PAYOFF_BOTH_CORRECT = PAYOFF_BOTH_CORRECT
-    PAYOFF_BOTH_WRONG   = PAYOFF_BOTH_WRONG
-    PAYOFF_ONE_CORRECT  = PAYOFF_ONE_CORRECT
-    PAYOFF_ONE_WRONG    = PAYOFF_ONE_WRONG
+    PAYOFF_BOTH_CORRECT        = PAYOFF_BOTH_CORRECT
+    PAYOFF_BOTH_WRONG_COMPUTER = PAYOFF_BOTH_WRONG_COMPUTER
+    PAYOFF_BOTH_WRONG_HUMAN    = PAYOFF_BOTH_WRONG_HUMAN
+    PAYOFF_ONE_CORRECT         = PAYOFF_ONE_CORRECT
+    PAYOFF_ONE_WRONG           = PAYOFF_ONE_WRONG
 
 
 class Subsession(BaseSubsession):
@@ -172,7 +176,19 @@ def _compute_posteriors(n_draws, k_red):
     return float(engine_good.belief[1]), float(engine_bad.belief[1])
 
 
-def _assign_payoffs(p1, p2, jar):
+def _both_wrong_payoff(round_number):
+    return PAYOFF_BOTH_WRONG_COMPUTER if _is_bot_match(round_number) else PAYOFF_BOTH_WRONG_HUMAN
+
+
+def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
+    """Deterministic per-round shuffle so red/blue balls display in mixed order."""
+    colors = ['R'] * n_red + ['B'] * n_blue
+    seed = abs(hash((session_code, salt, round_number, n_red, n_blue))) % (2 ** 31)
+    np.random.default_rng(seed).shuffle(colors)
+    return colors
+
+
+def _assign_payoffs(p1, p2, jar, round_number):
     p1.is_correct = (p1.guess == jar)
     p2.is_correct = (p2.guess == jar)
     both_correct = p1.is_correct and p2.is_correct
@@ -181,8 +197,9 @@ def _assign_payoffs(p1, p2, jar):
         p1.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
         p2.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
     elif both_wrong:
-        p1.payoff_this_round = float(PAYOFF_BOTH_WRONG)
-        p2.payoff_this_round = float(PAYOFF_BOTH_WRONG)
+        bw = float(_both_wrong_payoff(round_number))
+        p1.payoff_this_round = bw
+        p2.payoff_this_round = bw
     else:
         p1.payoff_this_round = float(PAYOFF_ONE_CORRECT if p1.is_correct else PAYOFF_ONE_WRONG)
         p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
@@ -190,7 +207,7 @@ def _assign_payoffs(p1, p2, jar):
 
 # ── Instructions widget ───────────────────────────────────────────────────────
 
-def _instructions_vars():
+def _instructions_vars(round_number):
     return dict(
         stage_instructions_bullets=[
             'Writer sees all 20 balls and the 6-ball sample sent to Reader.',
@@ -200,7 +217,7 @@ def _instructions_vars():
         ],
         show_payoff_table=True,
         payoff_both_correct=PAYOFF_BOTH_CORRECT,
-        payoff_both_wrong=PAYOFF_BOTH_WRONG,
+        payoff_both_wrong=_both_wrong_payoff(round_number),
         payoff_one_correct=PAYOFF_ONE_CORRECT,
         payoff_one_wrong=PAYOFF_ONE_WRONG,
     )
@@ -235,7 +252,7 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -262,7 +279,7 @@ class MatchTransitionPage(Page):
             ))
         jar_changes = (player.round_number == 7)  # jar flips at match 3
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
@@ -295,12 +312,12 @@ class WriterPage(Page):
         k_red_s  = sample.count('R')
         k_blue_s = sample.count('B')
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             jar=jar,
-            all_red_balls=list(range(n_red)),
-            all_blue_balls=list(range(n_blue)),
+            all_ball_order=_shuffled_ball_order(player.session.code, 'stage4_writer_all', player.round_number, n_red, n_blue),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage4_writer_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             match_number=_match_number(player.round_number),
@@ -344,7 +361,7 @@ class WriterPage(Page):
         player.posterior_red_good = 1.0 if jar == 'Red' else 0.0
         player.posterior_red_bad  = 1.0 if jar == 'Red' else 0.0
 
-        _assign_payoffs(player, p2, jar)
+        _assign_payoffs(player, p2, jar, player.round_number)
 
         # Update only Writer's cumulative earnings (bot has none)
         prev = player.participant.vars.get('cumulative_earnings', 0)
@@ -359,7 +376,7 @@ class ReaderWaitPage(WaitPage):
     """
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars()
+        return _instructions_vars(player.round_number)
 
     @staticmethod
     def is_displayed(player):
@@ -388,9 +405,10 @@ class ReaderPage(Page):
         k_blue_s  = sample.count('B')
         all_add   = _get_all_additional_draws(player.session.code, player.round_number)
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage4_reader_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             additional_ball_1=all_add[0],
@@ -419,7 +437,7 @@ class ReaderPage(Page):
 class ResultsWaitPage(WaitPage):
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars()
+        return _instructions_vars(player.round_number)
 
     @staticmethod
     def is_displayed(player):
@@ -446,7 +464,7 @@ class ResultsWaitPage(WaitPage):
                 f"(p1.guess={p1.guess!r}, p2.guess={p2.guess!r})"
             )
 
-        _assign_payoffs(p1, p2, jar)
+        _assign_payoffs(p1, p2, jar, group.round_number)
 
         for p in [p1, p2]:
             prev = p.participant.vars.get('cumulative_earnings', 0)
@@ -474,8 +492,7 @@ class ResultsPage(Page):
         reader_add_red  = [b for b in reader_add_balls if b == 'R']
         reader_add_blue = [b for b in reader_add_balls if b == 'B']
         return dict(
-            **_instructions_vars(),
-            jar_assignment=player.jar_assignment,
+            **_instructions_vars(player.round_number),
             match_number=match,
             round_in_match=rig,
             is_bot_match=_is_bot_match(player.round_number),
@@ -487,11 +504,16 @@ class ResultsPage(Page):
             partner_is_correct=partner.is_correct,
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
+            sample_ball_order=_shuffled_ball_order(player.session.code, 'stage4_results_sample', player.round_number, k_red_s, k_blue_s),
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             reader_n_additional_draws=n_add,
             reader_add_red_balls=list(range(len(reader_add_red))),
             reader_add_blue_balls=list(range(len(reader_add_blue))),
+            reader_add_ball_order=_shuffled_ball_order(
+                player.session.code, 'stage4_results_add', player.round_number,
+                len(reader_add_red), len(reader_add_blue),
+            ),
             is_last_round=player.round_number == C.NUM_ROUNDS,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )

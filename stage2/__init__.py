@@ -16,12 +16,14 @@ drawn without replacement, then may pay $2 per ball for up to 4 more
 (10 balls total). The first additional ball is rigged to match the jar
 majority colour; subsequent ones are truly random from the remaining jar.
 
-Payoff: $5 correct, $0 wrong, minus $2 per additional ball requested.
-Net payoff can be negative.
+Payoff: $5 correct (all rounds). Wrong guess: $0 in rounds 1-3, -$3 in rounds 4-6.
+Additional balls cost $2 each. Net payoff can be negative.
 """
 
-PAYOFF_CORRECT = 5   # dollars
-DRAW_COST      = 2   # dollars per additional ball
+PAYOFF_CORRECT      = 5   # dollars
+PAYOFF_WRONG_GROUP1 = 0   # wrong guess, rounds 1-3
+PAYOFF_WRONG_GROUP2 = -3  # wrong guess, rounds 4-6
+DRAW_COST           = 2   # dollars per additional ball
 
 _WANT_CHOICES = [[True,  'Yes, draw one more ball ($2)'],
                  [False, 'No, I will decide now']]
@@ -43,8 +45,10 @@ class C(BaseConstants):
     BLUE_JAR_RED  = 6
     BLUE_JAR_BLUE = 14
 
-    PAYOFF_CORRECT = PAYOFF_CORRECT
-    DRAW_COST      = DRAW_COST
+    PAYOFF_CORRECT      = PAYOFF_CORRECT
+    PAYOFF_WRONG_GROUP1 = PAYOFF_WRONG_GROUP1
+    PAYOFF_WRONG_GROUP2 = PAYOFF_WRONG_GROUP2
+    DRAW_COST           = DRAW_COST
 
 
 class Subsession(BaseSubsession):
@@ -118,6 +122,14 @@ def _seed_jar(session_code):
 def _seed_draw(session_code, round_number):
     """Seed for ball draws in a specific round."""
     return abs(hash((session_code, 'stage2_draw', round_number))) % (2 ** 31)
+
+
+def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
+    """Deterministic per-round shuffle so red/blue balls display in mixed order."""
+    colors = ['R'] * n_red + ['B'] * n_blue
+    seed = abs(hash((session_code, salt, round_number, n_red, n_blue))) % (2 ** 31)
+    np.random.default_rng(seed).shuffle(colors)
+    return colors
 
 
 def _jar_group(round_number):
@@ -194,8 +206,9 @@ def _adddraw_vars(player, draw_number):
         add_draw_number=draw_number,
         new_ball_is_red=new_ball == 'R',
         new_ball_color='Red' if new_ball == 'R' else 'Blue',
-        red_balls=list(range(n_red)),
-        blue_balls=list(range(n_blue)),
+        ball_order=_shuffled_ball_order(
+            player.session.code, f'stage2_add_{draw_number}', player.round_number, n_red, n_blue,
+        ),
         draw_red=n_red,
         draw_blue=n_blue,
         n_draws_total=len(all_so_far),
@@ -257,6 +270,7 @@ class StageIntroPage(Page):
             draw_cost=DRAW_COST,
             max_balls_total=C.N_INITIAL_DRAWS + C.MAX_ADDITIONAL,
             rounds_per_jar_plus_1=C.ROUNDS_PER_JAR + 1,
+            abs_payoff_wrong_group2=abs(PAYOFF_WRONG_GROUP2),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -302,8 +316,10 @@ class DrawPage(Page):
             **_instructions_vars(),
             draw_red=initial.count('R'),
             draw_blue=initial.count('B'),
-            red_balls=list(range(initial.count('R'))),
-            blue_balls=list(range(initial.count('B'))),
+            ball_order=_shuffled_ball_order(
+                player.session.code, 'stage2_draw_page', player.round_number,
+                initial.count('R'), initial.count('B'),
+            ),
             draw_cost=DRAW_COST,
             max_additional=C.MAX_ADDITIONAL,
             jar_group=g,
@@ -411,8 +427,10 @@ class ChoicePage(Page):
             **_instructions_vars(),
             draw_red=all_balls.count('R'),
             draw_blue=all_balls.count('B'),
-            red_balls=list(range(all_balls.count('R'))),
-            blue_balls=list(range(all_balls.count('B'))),
+            ball_order=_shuffled_ball_order(
+                player.session.code, 'stage2_choice', player.round_number,
+                all_balls.count('R'), all_balls.count('B'),
+            ),
             n_total=len(all_balls),
             n_additional=n,
             total_cost=DRAW_COST * n,
@@ -429,9 +447,14 @@ class ChoicePage(Page):
         n         = player.n_additional_draws
         all_balls = initial + additional[:n]
         player.all_balls_json = json.dumps(all_balls)
-        player.is_correct     = (player.guess == player.jar_assignment)
-        player.gross_payoff   = float(PAYOFF_CORRECT) if player.is_correct else 0.0
-        player.net_payoff     = player.gross_payoff - player.total_draw_cost
+        player.is_correct = (player.guess == player.jar_assignment)
+        if player.is_correct:
+            player.gross_payoff = float(PAYOFF_CORRECT)
+        else:
+            player.gross_payoff = float(
+                PAYOFF_WRONG_GROUP1 if player.jar_group == 1 else PAYOFF_WRONG_GROUP2
+            )
+        player.net_payoff = player.gross_payoff - player.total_draw_cost
         prev = player.participant.vars.get('cumulative_earnings', 0)
         player.participant.vars['cumulative_earnings'] = prev + player.net_payoff
 

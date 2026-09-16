@@ -1,0 +1,24 @@
+{% block title %}Experiment Complete{% endblock %}
+
+{% block content %}
+
+<div class="card mb-4 shadow-sm border-success">
+  <div class="card-header fw-semibold bg-success text-white">
+    Thank you for participating!
+  </div>
+  <div class="card-body text-center py-4">
+    <p class="mb-2">You have completed all stages of the experiment.</p>
+    <p class="text-muted mb-3">Your total earnings:</p>
+    <p class="mb-0" style="font-size:2rem;">
+      <strong class="text-success">${{ cumulative_earnings }}</strong>
+    </p>
+  </div>
+</div>
+
+<p class="text-muted" style="font-size:0.9rem;">
+  Please follow any final instructions from the experimenter before closing this page.
+</p>
+
+{% next_button %}
+
+{% endblock %}
