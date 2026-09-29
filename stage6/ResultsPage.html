@@ -64,9 +64,9 @@
 <div class="card mb-3 shadow-sm">
   <div class="card-body text-muted" style="font-size:0.9rem;">
     {% if reader_n_additional_draws == 0 %}
-      Your reader did not request any additional draws.
+      The other player did not request any additional draws.
     {% else %}
-      Your reader requested {{ reader_n_additional_draws }} additional draw{% if reader_n_additional_draws > 1 %}s{% endif %}
+      The other player requested {{ reader_n_additional_draws }} additional draw{% if reader_n_additional_draws > 1 %}s{% endif %}
       (cost: ${{ reader_add_cost }}).
     {% endif %}
   </div>
@@ -117,5 +117,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

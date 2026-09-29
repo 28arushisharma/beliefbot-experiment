@@ -1,4 +1,4 @@
-{% block title %}The jar has changed{% endblock %}
+{% block title %}The jar may change{% endblock %}
 
 {% block content %}
 
@@ -8,7 +8,7 @@
 </div>
 
 <div class="alert alert-info" role="alert">
-  <strong>New jar!</strong> You are now drawing from a <em>different</em> jar for the next
+  <strong>The jar may change.</strong> You may now be drawing from a <em>different</em> jar for the next
   {{ C.ROUNDS_PER_JAR }} rounds.
 </div>
 
@@ -29,13 +29,13 @@
   <div class="card-header fw-semibold">What to expect next (Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }})</div>
   <div class="card-body">
     <p>
-      The new jar is either a
+      The jar for these rounds is either a
       <span class="text-danger fw-semibold">Red Jar</span> (14 red, 6 blue) or a
       <span class="text-primary fw-semibold">Blue Jar</span> (14 blue, 6 red).
     </p>
     <p>
       You will see <strong>{{ C.ROUNDS_PER_JAR }} more draws</strong>
-      from this new jar, then the stage ends.
+      from this jar, then the stage ends.
     </p>
     <p class="mb-0 text-muted" style="font-size:0.9rem;">
       As before, {{ C.N_DRAWS }} balls are drawn each round.
@@ -49,5 +49,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

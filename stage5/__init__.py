@@ -72,6 +72,10 @@ class Group(BaseGroup):
 
 
 class Player(BasePlayer):
+    # Seconds between page load and submit (set by JS on every page).
+    # time_on_page holds the most recent page; page_times keeps every page this round.
+    time_on_page = models.IntegerField(initial=0)
+    page_times   = models.LongStringField(initial='{}')
     jar_assignment     = models.StringField()
     guess = models.StringField(
         choices=[['Red',  'Red Jar (14 red, 6 blue)'],
@@ -237,12 +241,13 @@ def _assign_payoffs(p1, p2, jar):
 
 # ── Instructions widget ───────────────────────────────────────────────────────
 
-def _instructions_vars():
+def _instructions_vars(round_number):
     return dict(
         stage_instructions_bullets=[
             'Writer chooses one of 6 candidate samples to send to Reader.',
             'Reader sees the chosen sample; may draw up to 3 extra balls.',
-            'Matches 1–2: vs computer Reader (draws free). Matches 3–4: vs human Reader ($2/ball).',
+            ('Extra draws are free this round.' if _is_bot_match(round_number)
+             else 'Extra draws cost $2 each this round.'),
             'Payoffs depend on both players\' jar guesses — see the payoff table.',
         ],
         show_payoff_table=True,
@@ -250,6 +255,7 @@ def _instructions_vars():
         payoff_both_wrong=PAYOFF_BOTH_WRONG,
         payoff_one_correct=PAYOFF_ONE_CORRECT,
         payoff_one_wrong=PAYOFF_ONE_WRONG,
+        abs_payoff_one_wrong=abs(PAYOFF_ONE_WRONG),
     )
 
 
@@ -270,9 +276,21 @@ def creating_session(subsession):
             player.participant.vars['bot_reader_types'] = types
 
 
+# ── Time-on-page tracking ─────────────────────────────────────────────────────
+
+def _record_time_on_page(player, page_name):
+    """Copy this page's time_on_page (seconds) into the per-round page_times JSON log."""
+    times = json.loads(player.page_times)
+    times[page_name] = player.time_on_page
+    player.page_times = json.dumps(times)
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 class StageIntroPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return player.round_number == 1 and _is_writer(player)
@@ -280,13 +298,20 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
             draw_cost_display=int(C.DRAW_COST_PER_BALL),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'StageIntroPage')
+
 
 class MatchTransitionPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return player.round_number in (4, 7, 10) and not _is_bot_reader(player)
@@ -304,7 +329,7 @@ class MatchTransitionPage(Page):
         ))
         jar_changes = (player.round_number == 7)
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
@@ -315,10 +340,14 @@ class MatchTransitionPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'MatchTransitionPage')
+
 
 class WriterPage(Page):
     form_model  = 'player'
-    form_fields = ['selected_sample_index', 'guess']
+    form_fields = ['selected_sample_index', 'guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -352,7 +381,7 @@ class WriterPage(Page):
             ))
 
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             jar=jar,
             all_ball_order=_shuffled_ball_order(player.session.code, 'stage5_writer_all', player.round_number, n_red, n_blue),
             samples_template=samples_template,
@@ -364,6 +393,7 @@ class WriterPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'WriterPage')
         if not _is_writer(player):
             return
 
@@ -415,7 +445,7 @@ class ReaderWaitPage(WaitPage):
     """Reader waits for Writer to submit. Skipped in bot rounds."""
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars()
+        return _instructions_vars(player.round_number)
 
     @staticmethod
     def is_displayed(player):
@@ -424,7 +454,7 @@ class ReaderWaitPage(WaitPage):
 
 class ReaderPage(Page):
     form_model  = 'player'
-    form_fields = ['n_additional_draws', 'guess']
+    form_fields = ['n_additional_draws', 'guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -447,7 +477,7 @@ class ReaderPage(Page):
         match_num  = _match_number(player.round_number)
         is_paid    = match_num > C.BOT_MATCHES
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
             sample_ball_order=_shuffled_ball_order(player.session.code, 'stage5_reader_sample', player.round_number, k_red_s, k_blue_s),
@@ -466,6 +496,7 @@ class ReaderPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ReaderPage')
         writer   = player.group.get_player_by_id(1)
         sel_idx  = writer.selected_sample_index
         samples  = _get_candidate_samples(player.session.code, player.round_number)
@@ -491,7 +522,7 @@ class ReaderPage(Page):
 class ResultsWaitPage(WaitPage):
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars()
+        return _instructions_vars(player.round_number)
 
     @staticmethod
     def is_displayed(player):
@@ -518,6 +549,9 @@ class ResultsWaitPage(WaitPage):
 
 
 class ResultsPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return not _is_bot_reader(player)
@@ -542,16 +576,17 @@ class ResultsPage(Page):
         add_blue  = [b for b in add_balls if b == 'B']
 
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player.round_number),
             match_number=match,
             round_in_match=rig,
             is_bot_match=_is_bot_match(player.round_number),
             is_writer=_is_writer(player),
             guess=player.guess,
-            is_correct=player.is_correct,
             payoff_this_round=int(player.payoff_this_round),
+            abs_payoff_this_round=int(abs(player.payoff_this_round)),
             partner_guess=partner.guess,
-            partner_is_correct=partner.is_correct,
+            partner_payoff_this_round=int(partner.payoff_this_round),
+            abs_partner_payoff_this_round=int(abs(partner.payoff_this_round)),
             selected_sample_index=sel_idx,
             selected_sample_number=sel_idx + 1,  # 1-based; avoids |add:1 filter in template
             sample_red_balls=list(range(k_red_s)),
@@ -571,6 +606,10 @@ class ResultsPage(Page):
             is_last_round=player.round_number == C.NUM_ROUNDS,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
+
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ResultsPage')
 
 
 page_sequence = [

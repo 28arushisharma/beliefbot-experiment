@@ -66,7 +66,7 @@
           </td>
         </tr>
         <tr>
-          <td class="pe-4 text-muted">Opponent's guess</td>
+          <td class="pe-4 text-muted">The other player's guess</td>
           <td class="fw-semibold {% if partner_guess == 'Red' %}text-danger{% else %}text-primary{% endif %}">
             {{ partner_guess }} Jar
           </td>
@@ -75,9 +75,9 @@
         <tr>
           <td class="pe-4 text-muted" colspan="2">
             {% if reader_n_additional_draws == 0 %}
-              Your reader did not request any additional draws.
+              The other player did not request any additional draws.
             {% else %}
-              Your reader requested {{ reader_n_additional_draws }} additional draw{% if reader_n_additional_draws > 1 %}s{% endif %}.
+              The other player requested {{ reader_n_additional_draws }} additional draw{% if reader_n_additional_draws > 1 %}s{% endif %}.
             {% endif %}
           </td>
         </tr>
@@ -94,37 +94,20 @@
       <thead class="table-light">
         <tr>
           <th></th>
-          <th class="text-center">Correct?</th>
           <th class="text-center">Earned</th>
         </tr>
       </thead>
       <tbody>
         <tr class="table-light fw-bold">
           <td class="ps-3">You</td>
-          <td class="text-center">
-            {% if is_correct %}
-              <span class="badge bg-success">Yes ✓</span>
-            {% else %}
-              <span class="badge bg-danger">No ✗</span>
-            {% endif %}
-          </td>
-          <td class="text-center {% if payoff_this_round > 0 %}text-success{% else %}text-secondary{% endif %}">
-            ${{ payoff_this_round }}
+          <td class="text-center {% if payoff_this_round > 0 %}text-success{% elif payoff_this_round < 0 %}text-danger{% else %}text-secondary{% endif %}">
+            {% if payoff_this_round >= 0 %}${{ payoff_this_round }}{% else %}&minus;${{ abs_payoff_this_round }}{% endif %}
           </td>
         </tr>
         <tr>
-          <td class="ps-3 text-muted">Opponent</td>
-          <td class="text-center">
-            {% if partner_is_correct %}
-              <span class="badge bg-success">Yes ✓</span>
-            {% else %}
-              <span class="badge bg-danger">No ✗</span>
-            {% endif %}
-          </td>
-          <td class="text-center text-muted">
-            {% if partner_is_correct %}${{ C.PAYOFF_ONE_CORRECT }}{% if is_correct %}&nbsp;→&nbsp;${{ C.PAYOFF_BOTH_CORRECT }}{% endif %}
-            {% else %}${{ C.PAYOFF_ONE_WRONG }}{% if not is_correct %}&nbsp;→&nbsp;${{ payoff_both_wrong }}{% endif %}
-            {% endif %}
+          <td class="ps-3 text-muted">The other player</td>
+          <td class="text-center {% if partner_payoff_this_round > 0 %}text-success{% elif partner_payoff_this_round < 0 %}text-danger{% else %}text-secondary{% endif %}">
+            {% if partner_payoff_this_round >= 0 %}${{ partner_payoff_this_round }}{% else %}&minus;${{ abs_partner_payoff_this_round }}{% endif %}
           </td>
         </tr>
       </tbody>
@@ -156,5 +139,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

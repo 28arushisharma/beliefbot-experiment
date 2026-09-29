@@ -1,4 +1,4 @@
-{% block title %}Stage 6 &mdash; Writer Chooses the Sample{% endblock %}
+{% block title %}Stage 6{% endblock %}
 
 {% block content %}
 
@@ -22,31 +22,27 @@
     </div>
     <p class="mb-1">
       You will see <strong>{{ C.N_SAMPLES }} candidate samples</strong> of {{ C.SAMPLE_SIZE }} balls each.
-      You <em>choose which sample</em> to send to your Reader.
+      You <em>choose which sample</em> to send to the other player.
       You will then guess which jar the balls came from.
     </p>
   </div>
 </div>
 
 <div class="card mb-4 shadow-sm">
-  <div class="card-header fw-semibold">Your Reader</div>
+  <div class="card-header fw-semibold">The other player (Reader)</div>
   <div class="card-body">
     <p class="mb-2">
-      Your Reader sees <em>only</em> the sample you choose &mdash; they do not know there were other options.
+      The other player sees <em>only</em> the sample you choose &mdash; they do not know there were other options.
       They may request up to <strong>{{ C.MAX_ADDITIONAL }} additional draws</strong> before guessing.
     </p>
     <div class="alert alert-danger mb-2 py-2" style="font-size:0.88rem;">
-      <strong>Draw cost:</strong> Each additional draw your Reader requests costs
+      <strong>Draw cost:</strong> Each additional draw the other player requests costs
       <strong>${{ draw_cost_display }}</strong> and is deducted from their round payoff.
       This applies in <strong>all matches</strong>.
     </div>
-    <p class="mb-2">
+    <p class="mb-0">
       You will both guess the jar type. Your payoff depends on <em>both</em> your guesses.
     </p>
-    <div class="alert alert-warning mb-0 py-2" style="font-size:0.88rem;">
-      <strong>Note:</strong> Your Reader may be a real participant or a computer.
-      You will <em>not</em> be told which.
-    </div>
   </div>
 </div>
 
@@ -58,31 +54,31 @@
         <tr>
           <td class="pe-3 fw-semibold">Match 1</td>
           <td>Rounds 1&ndash;3</td>
-          <td><span class="badge bg-secondary">vs a reader</span></td>
+          <td><span class="badge bg-secondary">vs the other player</span></td>
           <td class="text-muted ps-2" style="font-size:0.85rem;">Jar 1 &mdash; extra draws ${{ draw_cost_display }} each</td>
         </tr>
         <tr>
           <td class="pe-3 fw-semibold">Match 2</td>
           <td>Rounds 4&ndash;6</td>
-          <td><span class="badge bg-secondary">vs a reader</span></td>
+          <td><span class="badge bg-secondary">vs the other player</span></td>
           <td class="text-muted ps-2" style="font-size:0.85rem;">Jar 1 &mdash; extra draws ${{ draw_cost_display }} each</td>
         </tr>
         <tr>
           <td class="pe-3 fw-semibold">Match 3</td>
           <td>Rounds 7&ndash;9</td>
-          <td><span class="badge bg-secondary">vs a reader</span></td>
+          <td><span class="badge bg-secondary">vs the other player</span></td>
           <td class="text-muted ps-2" style="font-size:0.85rem;">Jar 2 (new) &mdash; extra draws ${{ draw_cost_display }} each</td>
         </tr>
         <tr>
           <td class="pe-3 fw-semibold">Match 4</td>
           <td>Rounds 10&ndash;12</td>
-          <td><span class="badge bg-secondary">vs a reader</span></td>
+          <td><span class="badge bg-secondary">vs the other player</span></td>
           <td class="text-muted ps-2" style="font-size:0.85rem;">Jar 2 &mdash; extra draws ${{ draw_cost_display }} each</td>
         </tr>
       </tbody>
     </table>
     <p class="text-muted mb-0" style="font-size:0.88rem;">
-      The jar <strong>changes</strong> between Match 2 and Match 3 (always the opposite colour).
+      The jar may change starting in Match 3.
       Additional draws cost ${{ draw_cost_display }} each in every match.
     </p>
   </div>
@@ -133,5 +129,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

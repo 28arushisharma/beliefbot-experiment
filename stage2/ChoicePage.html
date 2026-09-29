@@ -51,7 +51,7 @@
 <div class="card mb-4 shadow-sm">
   <div class="card-header fw-semibold">Your guess</div>
   <div class="card-body">
-    {% formfields %}
+    {% formfield player.guess %}
   </div>
 </div>
 
@@ -60,5 +60,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

@@ -94,17 +94,6 @@
   You have purchased all {{ max_additional }} additional balls available this round.
   Please make your final jar decision below.
 </div>
-{% else %}
-<div class="card mb-4 shadow-sm">
-  <div class="card-header fw-semibold">Buy another ball?</div>
-  <div class="card-body">
-    <p class="text-muted mb-2" style="font-size: 0.9rem;">
-      Each additional ball costs <strong>${{ draw_cost }}</strong>.
-      You have used {{ add_draw_number }} of {{ max_additional }} additional draws.
-    </p>
-    {% formfields %}
-  </div>
-</div>
 {% endif %}
 
 <p class="text-muted" style="font-size: 0.85rem;"><em>Do not refresh this page.</em></p>
@@ -112,5 +101,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

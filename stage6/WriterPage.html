@@ -10,25 +10,25 @@
 <div class="card mb-3 border-secondary" style="border-style: dashed;">
   <div class="card-body text-muted" style="font-size: 0.9rem;">
     <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
-    <span class="float-end"><span class="badge bg-secondary">vs reader</span></span>
+    <span class="float-end"><span class="badge bg-secondary">vs the other player</span></span>
   </div>
 </div>
 
 <div class="alert alert-warning py-2 mb-3" style="font-size:0.9rem;">
   <strong>Reminder:</strong> You do <strong>not</strong> know which jar the balls are drawn from.
-  Choose a sample to send to your Reader and make your best guess.
+  Choose a sample to send to the other player and make your best guess.
 </div>
 
 <!-- 6 candidate samples — writer clicks to choose -->
 <div class="card mb-3 shadow-sm">
   <div class="card-header fw-semibold">
-    Choose one sample to send to your reader
+    Choose one sample to send to the other player
     <span class="text-muted fw-normal" style="font-size:0.85rem;">&mdash; {{ C.N_SAMPLES }} options, each {{ C.SAMPLE_SIZE }} balls</span>
   </div>
   <div class="card-body pb-2">
     <p class="text-muted mb-3" style="font-size:0.9rem;">
       Each sample below was drawn from the jar. Click a sample to select it.
-      Your reader will see <em>only</em> the sample you choose.
+      The other player will see <em>only</em> the sample you choose.
     </p>
 
     <div class="row g-2 mb-3" id="samples-grid">
@@ -63,7 +63,7 @@
     </div>
 
     <div id="selection-indicator" class="alert alert-success py-2 mb-0" style="display:none; font-size:0.9rem;">
-      <strong id="selection-label"></strong> selected &mdash; your reader will see this sample.
+      <strong id="selection-label"></strong> selected &mdash; the other player will see this sample.
     </div>
   </div>
 </div>
@@ -77,7 +77,7 @@
   <div class="card-body">
     <p class="text-muted mb-3" style="font-size:0.9rem;">
       Based on the sample you chose, make your best guess about which jar the balls came from.
-      Your reader is reviewing the sample and making their own guess independently.
+      The other player is reviewing the sample and making their own guess independently.
     </p>
     {% formfield player.guess %}
   </div>
@@ -127,5 +127,7 @@
 </script>
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

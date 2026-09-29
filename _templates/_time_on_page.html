@@ -1,0 +1,25 @@
+{% comment %}
+Time-on-page tracker — included inside the content block of every stage page.
+Records whole seconds between page load and form submission in the
+player.time_on_page field (the page must list 'time_on_page' in form_fields).
+{% endcomment %}
+
+<input type="hidden" name="time_on_page" id="id_time_on_page" value="0">
+
+<script>
+(function () {
+  var input = document.getElementById('id_time_on_page');
+  if (!input) return;
+  var startedAt = Date.now();
+
+  function update() {
+    input.value = Math.round((Date.now() - startedAt) / 1000);
+  }
+
+  // Keep the value current in case the form is submitted without a submit event.
+  setInterval(update, 1000);
+  if (input.form) {
+    input.form.addEventListener('submit', update);
+  }
+}());
+</script>

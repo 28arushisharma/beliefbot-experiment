@@ -29,33 +29,25 @@
   <div class="card-body">
     {% if is_writer %}
       <p class="mb-2">
-        You have been matched with a new Reader for Match {{ match_number }}.
+        You have been matched with the other player (the Reader) for Match {{ match_number }}.
         You will play 3 rounds together.
       </p>
       {% if jar_changes %}
-      <div class="alert alert-info mb-2 py-2" style="font-size:0.88rem;">
-        <strong>Jar change:</strong> A new jar will be used for Matches 3 and 4.
-        You will still see all 20 balls each round as the Writer, and your Reader will still see a 6-ball sample.
+      <div class="alert alert-info mb-0 py-2" style="font-size:0.88rem;">
+        <strong>Jar change:</strong> The jar may change starting in Match 3.
+        You will still see all 20 balls each round as the Writer, and the other player will still see a 6-ball sample.
       </div>
       {% endif %}
-      <div class="alert alert-warning mb-0 py-2" style="font-size:0.88rem;">
-        <strong>Note:</strong> Your Reader may be a real participant or a computer.
-        You will not be told which.
-      </div>
     {% else %}
       <p class="mb-2">
-        You have been matched with a new Writer for Match {{ match_number }}.
+        You have been matched with the other player (the Writer) for Match {{ match_number }}.
         You will play 3 rounds together.
       </p>
       {% if jar_changes %}
-      <div class="alert alert-info mb-2 py-2" style="font-size:0.88rem;">
-        <strong>Jar change:</strong> A new jar will be used for Matches 3 and 4.
+      <div class="alert alert-info mb-0 py-2" style="font-size:0.88rem;">
+        <strong>Jar change:</strong> The jar may change starting in Match 3.
       </div>
       {% endif %}
-      <div class="alert alert-warning mb-0 py-2" style="font-size:0.88rem;">
-        <strong>Note:</strong> Your Writer may be a real participant or a computer.
-        You will not be told which.
-      </div>
     {% endif %}
   </div>
 </div>
@@ -65,5 +57,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

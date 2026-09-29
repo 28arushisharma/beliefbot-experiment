@@ -10,7 +10,7 @@
 <div class="card mb-3 border-secondary" style="border-style: dashed;">
   <div class="card-body text-muted" style="font-size: 0.9rem;">
     <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
-    <span class="float-end"><span class="badge bg-secondary">vs writer</span></span>
+    <span class="float-end"><span class="badge bg-secondary">vs the other player</span></span>
   </div>
 </div>
 
@@ -71,7 +71,7 @@
   <div class="card-header fw-semibold">Your guess</div>
   <div class="card-body">
     <p class="text-muted mb-3" style="font-size:0.9rem;">
-      Your Writer has already made their guess. Make yours now.
+      The other player has already made their guess. Make yours now.
     </p>
     {% formfield player.guess %}
   </div>
@@ -125,5 +125,7 @@
 </script>
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

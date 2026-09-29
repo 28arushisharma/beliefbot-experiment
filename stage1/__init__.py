@@ -48,6 +48,10 @@ class Group(BaseGroup):
 
 
 class Player(BasePlayer):
+    # Seconds between page load and submit (set by JS on every page).
+    # time_on_page holds the most recent page; page_times keeps every page this round.
+    time_on_page = models.IntegerField(initial=0)
+    page_times   = models.LongStringField(initial='{}')
     jar_group      = models.IntegerField()     # 1 (rounds 1-3) or 2 (rounds 4-6)
     jar_assignment = models.StringField()      # 'Red' or 'Blue'
     draw_red       = models.IntegerField()
@@ -143,7 +147,7 @@ def _instructions_vars():
         stage_instructions_bullets=[
             'Observe 6 balls drawn from a 20-ball jar (with replacement).',
             'Guess: Red Jar (14 red, 6 blue) or Blue Jar (14 blue, 6 red)?',
-            'Rounds 1–3 use one jar; rounds 4–6 switch to the opposite jar.',
+            'The jar stays the same for rounds 1–3; the jar may change for rounds 4–6.',
             'Earn $5 per correct guess, $0 for wrong.',
         ],
         show_payoff_table=False,
@@ -160,10 +164,22 @@ def creating_session(subsession: Subsession):
         player.jar_assignment = _get_jar(player.session.code, g)
 
 
+# ── Time-on-page tracking ─────────────────────────────────────────────────────
+
+def _record_time_on_page(player, page_name):
+    """Copy this page's time_on_page (seconds) into the per-round page_times JSON log."""
+    times = json.loads(player.page_times)
+    times[page_name] = player.time_on_page
+    player.page_times = json.dumps(times)
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────
 
 class StageIntroPage(Page):
     """Transition screen shown once at the very start (round 1 only)."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def is_displayed(player: Player):
@@ -177,9 +193,16 @@ class StageIntroPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'StageIntroPage')
+
 
 class JarChangePage(Page):
     """Transition shown at round 4: the jar has changed."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def is_displayed(player: Player):
@@ -199,9 +222,16 @@ class JarChangePage(Page):
             cumulative_earnings   = int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'JarChangePage')
+
 
 class IntroPage(Page):
     """Display this round's 6-ball draw as colored circles. Store draw data on submit."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def vars_for_template(player: Player):
@@ -221,6 +251,7 @@ class IntroPage(Page):
 
     @staticmethod
     def before_next_page(player: Player, timeout_happened):
+        _record_time_on_page(player, 'IntroPage')
         k_red, k_blue = _get_draw(player.session.code, player.round_number)
         player.draw_red    = k_red
         player.draw_blue   = k_blue
@@ -231,7 +262,7 @@ class ChoicePage(Page):
     """Participant guesses which jar the balls came from."""
 
     form_model  = 'player'
-    form_fields = ['guess']
+    form_fields = ['guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -251,6 +282,7 @@ class ChoicePage(Page):
 
     @staticmethod
     def before_next_page(player: Player, timeout_happened):
+        _record_time_on_page(player, 'ChoicePage')
         player.is_correct        = (player.guess == player.jar_assignment)
         player.payoff_this_round = float(PAYOFF_CORRECT) if player.is_correct else 0.0
         player.posterior_red     = _posterior_red(player.session.code, player.round_number)
@@ -260,6 +292,9 @@ class ChoicePage(Page):
 
 class ResultsPage(Page):
     """Show correctness, round payoff, and running totals."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def vars_for_template(player: Player):
@@ -283,7 +318,6 @@ class ResultsPage(Page):
             draw_blue          = k_blue,
             red_balls          = list(range(k_red)),
             blue_balls         = list(range(k_blue)),
-            jar_assignment     = player.jar_assignment,
             jar_group          = group,
             round_in_group     = round_in_group,
             guess              = player.guess,
@@ -296,6 +330,10 @@ class ResultsPage(Page):
             is_last_round      = player.round_number == C.NUM_ROUNDS,
             cumulative_earnings= int(player.participant.vars.get('cumulative_earnings', 0)),
         )
+
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ResultsPage')
 
 
 page_sequence = [StageIntroPage, JarChangePage, IntroPage, ChoicePage, ResultsPage]

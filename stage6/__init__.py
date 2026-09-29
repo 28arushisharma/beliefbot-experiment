@@ -78,6 +78,10 @@ class Group(BaseGroup):
 
 
 class Player(BasePlayer):
+    # Seconds between page load and submit (set by JS on every page).
+    # time_on_page holds the most recent page; page_times keeps every page this round.
+    time_on_page = models.IntegerField(initial=0)
+    page_times   = models.LongStringField(initial='{}')
     jar_assignment     = models.StringField()
     guess = models.StringField(
         choices=[['Red',  'Red Jar (14 red, 6 blue)'],
@@ -249,7 +253,7 @@ def _instructions_vars():
         stage_instructions_bullets=[
             'Writer does NOT know the jar — sees 6 candidate samples only.',
             'Writer chooses one sample to send; Reader may draw up to 3 extra balls ($2 each).',
-            'Results reveal payoffs only — jar colour and partner\'s guess are not shown.',
+            'Results reveal payoffs only — jar colour and the other player\'s guess are not shown.',
             'Payoffs depend on both players\' jar guesses — see the payoff table.',
         ],
         show_payoff_table=True,
@@ -257,6 +261,7 @@ def _instructions_vars():
         payoff_both_wrong=PAYOFF_BOTH_WRONG,
         payoff_one_correct=PAYOFF_ONE_CORRECT,
         payoff_one_wrong=PAYOFF_ONE_WRONG,
+        abs_payoff_one_wrong=abs(PAYOFF_ONE_WRONG),
     )
 
 
@@ -277,9 +282,21 @@ def creating_session(subsession):
             player.participant.vars['bot_reader_types'] = types
 
 
+# ── Time-on-page tracking ─────────────────────────────────────────────────────
+
+def _record_time_on_page(player, page_name):
+    """Copy this page's time_on_page (seconds) into the per-round page_times JSON log."""
+    times = json.loads(player.page_times)
+    times[page_name] = player.time_on_page
+    player.page_times = json.dumps(times)
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 class StageIntroPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return player.round_number == 1 and _is_writer(player)
@@ -292,8 +309,15 @@ class StageIntroPage(Page):
             draw_cost_display=int(C.DRAW_COST_PER_BALL),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'StageIntroPage')
+
 
 class MatchTransitionPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return player.round_number in (4, 7, 10) and not _is_bot_reader(player)
@@ -322,10 +346,14 @@ class MatchTransitionPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'MatchTransitionPage')
+
 
 class WriterPage(Page):
     form_model  = 'player'
-    form_fields = ['selected_sample_index', 'guess']
+    form_fields = ['selected_sample_index', 'guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -365,6 +393,7 @@ class WriterPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'WriterPage')
         if not _is_writer(player):
             return
 
@@ -428,7 +457,7 @@ class ReaderWaitPage(WaitPage):
 
 class ReaderPage(Page):
     form_model  = 'player'
-    form_fields = ['n_additional_draws', 'guess']
+    form_fields = ['n_additional_draws', 'guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -467,6 +496,7 @@ class ReaderPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ReaderPage')
         writer  = player.group.get_player_by_id(1)
         sel_idx = writer.selected_sample_index
         samples = _get_candidate_samples(player.session.code, player.round_number)
@@ -518,6 +548,9 @@ class ResultsWaitPage(WaitPage):
 
 
 class ResultsPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return not _is_bot_reader(player)
@@ -564,9 +597,16 @@ class ResultsPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ResultsPage')
+
 
 class FinalPage(Page):
     """Shown once at the very end of Stage 6 with total cumulative earnings."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def is_displayed(player):
@@ -577,6 +617,10 @@ class FinalPage(Page):
         return dict(
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
+
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'FinalPage')
 
 
 page_sequence = [

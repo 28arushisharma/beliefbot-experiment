@@ -7,37 +7,37 @@ OTREE_PRODUCTION = 0
 SESSION_CONFIGS = [
     dict(
         name='stage1',
-        display_name='Stage 1 — Bayesian Learning',
+        display_name='Stage 1',
         app_sequence=['stage1'],
         num_demo_participants=1,
     ),
     dict(
         name='stage2',
-        display_name='Stage 2 — Sequential Information Acquisition',
+        display_name='Stage 2',
         app_sequence=['stage2'],
         num_demo_participants=1,
     ),
     dict(
         name='stage3',
-        display_name='Stage 3 — Conformity (Coordination Game)',
+        display_name='Stage 3',
         app_sequence=['stage3'],
         num_demo_participants=2,  # Player 1 = human, Player 2 = bot (matches 1-2) / human (matches 3-4)
     ),
     dict(
         name='stage4',
-        display_name='Stage 4 — Writer-Reader Game',
+        display_name='Stage 4',
         app_sequence=['stage4'],
         num_demo_participants=2,  # Player 1 = Writer (human), Player 2 = bot Reader (matches 1-2) / human Reader (matches 3-4)
     ),
     dict(
         name='stage5',
-        display_name='Stage 5 — Writer Chooses Sample',
+        display_name='Stage 5',
         app_sequence=['stage5'],
         num_demo_participants=2,  # Player 1 = Writer (human), Player 2 = bot Reader (matches 1-2) / human Reader (matches 3-4)
     ),
     dict(
         name='stage6',
-        display_name='Stage 6 — Writer Does Not Know Jar',
+        display_name='Stage 6',
         app_sequence=['stage6'],
         num_demo_participants=2,  # Player 1 = Writer (human, no jar info), Player 2 = bot Reader (matches 1-2) / human Reader (matches 3-4)
     ),
@@ -50,7 +50,7 @@ SESSION_CONFIGS = [
     dict(
         name='full_experiment',
         display_name='Full Experiment (Stages 1–6)',
-        app_sequence=['stage1', 'stage2', 'stage3', 'stage_break', 'stage4', 'stage5', 'stage6'],
+        app_sequence=['intro', 'stage1', 'stage2', 'stage3', 'stage_break', 'stage4', 'stage5', 'stage6'],
         num_demo_participants=2,
     ),
 ]

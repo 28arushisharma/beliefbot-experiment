@@ -10,7 +10,7 @@
 <div class="card mb-3 border-secondary" style="border-style: dashed;">
   <div class="card-body text-muted" style="font-size: 0.9rem;">
     <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
-    <span class="float-end"><span class="badge bg-secondary">vs writer</span></span>
+    <span class="float-end"><span class="badge bg-secondary">vs the other player</span></span>
   </div>
 </div>
 
@@ -22,7 +22,7 @@
 
 <div class="card mb-4 border-0 shadow-sm">
   <div class="card-header fw-semibold">
-    Your sample &mdash; {{ C.SAMPLE_SIZE }} balls chosen by your Writer
+    Your sample &mdash; {{ C.SAMPLE_SIZE }} balls chosen by the other player
     <span class="text-muted fw-normal" style="font-size:0.85rem;">
       &mdash; <span class="text-danger">{{ n_red_sample }} red</span>
       &nbsp;/&nbsp;
@@ -40,7 +40,7 @@
       {% endfor %}
     </div>
     <p class="text-muted mb-0" style="font-size:0.85rem;">
-      Your Writer selected this {{ C.SAMPLE_SIZE }}-ball sample from several options to show you.
+      The other player selected this {{ C.SAMPLE_SIZE }}-ball sample from several options to show you.
     </p>
   </div>
 </div>
@@ -89,7 +89,7 @@
   <div class="card-header fw-semibold">Your guess</div>
   <div class="card-body">
     <p class="text-muted mb-3" style="font-size:0.9rem;">
-      Your Writer has already made their guess. Make yours now.
+      The other player has already made their guess. Make yours now.
     </p>
     {% formfield player.guess %}
   </div>
@@ -151,5 +151,7 @@
 </script>
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

@@ -7,13 +7,14 @@ from beliefbot import BeliefEngine, hypergeometric_pmf  # noqa: F401
 doc = """
 Stage 3 — Conformity (Coordination Game).
 
-12 rounds: 4 matches × 3 sub-rounds each.
+6 rounds: 2 matches × 3 sub-rounds each.
 The jar changes between every match: each match gets a new, independently randomly
 assigned jar (Red or Blue), fixed for that match's 3 sub-rounds.
 10 balls drawn per sub-round with replacement.
 
-Matches 1-2 (rounds 1-6):  vs computer bot (fixed random choice).
-Matches 3-4 (rounds 7-12): vs real human partner.
+Match 1 (rounds 1-3): vs computer bot (fixed random choice).
+Match 2 (rounds 4-6): vs real human partner.
+The bot/human distinction is internal only — never shown to participants.
 
 Payoffs per sub-round:
   Both correct:  $30
@@ -30,10 +31,10 @@ PAYOFF_ONE_WRONG    = 0
 class C(BaseConstants):
     NAME_IN_URL       = 'stage3'
     PLAYERS_PER_GROUP = 2
-    NUM_ROUNDS        = 12
+    NUM_ROUNDS        = 6
     ROUNDS_PER_MATCH  = 3
-    NUM_MATCHES       = 4
-    BOT_MATCHES       = 2   # matches 1-2 vs bot; matches 3-4 vs human
+    NUM_MATCHES       = 2
+    BOT_MATCHES       = 1   # match 1 vs bot; match 2 vs human
 
     N_BALLS      = 20
     N_DRAWS      = 10
@@ -59,6 +60,10 @@ class Group(BaseGroup):
 
 
 class Player(BasePlayer):
+    # Seconds between page load and submit (set by JS on every page).
+    # time_on_page holds the most recent page; page_times keeps every page this round.
+    time_on_page = models.IntegerField(initial=0)
+    page_times   = models.LongStringField(initial='{}')
     jar_assignment    = models.StringField()
     guess             = models.StringField(
         choices=[['Red',  'Red Jar (14 red, 6 blue)'],
@@ -145,9 +150,8 @@ def _posterior(draw_red):
 def _instructions_vars():
     return dict(
         stage_instructions_bullets=[
-            'Matches 1–2: vs computer partner. Matches 3–4: vs human partner.',
-            'Observe 10 balls drawn from a shared jar (a new jar is randomly assigned each match).',
-            'You and your partner each guess the jar independently.',
+            'Observe 10 balls drawn from a shared jar (the jar may change with each match).',
+            'You and the other player each guess the jar independently.',
             'Payoffs depend on both guesses — see the payoff table.',
         ],
         show_payoff_table=True,
@@ -155,6 +159,7 @@ def _instructions_vars():
         payoff_both_wrong=PAYOFF_BOTH_WRONG,
         payoff_one_correct=PAYOFF_ONE_CORRECT,
         payoff_one_wrong=PAYOFF_ONE_WRONG,
+        abs_payoff_one_wrong=abs(PAYOFF_ONE_WRONG),
     )
 
 
@@ -171,9 +176,21 @@ def creating_session(subsession):
             player.participant.vars['bot_choice'] = bot_choice
 
 
+# ── Time-on-page tracking ─────────────────────────────────────────────────────
+
+def _record_time_on_page(player, page_name):
+    """Copy this page's time_on_page (seconds) into the per-round page_times JSON log."""
+    times = json.loads(player.page_times)
+    times[page_name] = player.time_on_page
+    player.page_times = json.dumps(times)
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 class StageIntroPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return player.round_number == 1 and not _is_bot_player(player)
@@ -185,11 +202,18 @@ class StageIntroPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'StageIntroPage')
+
 
 class MatchTransitionPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
-        return player.round_number in (4, 7, 10) and not _is_bot_player(player)
+        return player.round_number == 4 and not _is_bot_player(player)
 
     @staticmethod
     def vars_for_template(player):
@@ -197,7 +221,7 @@ class MatchTransitionPage(Page):
         prev_match = match - 1
         prev_start = _match_start_round(prev_match)
         prev_end   = _match_end_round(prev_match)
-        # Player 2 was a bot in matches 1-2; those payoffs don't count for them
+        # Player 2 was a bot in match 1; those payoffs don't count for them
         was_bot_prev = _is_bot_match(prev_start) and player.id_in_group == 2
         if was_bot_prev:
             prev_match_net = 0
@@ -215,8 +239,15 @@ class MatchTransitionPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'MatchTransitionPage')
+
 
 class DrawPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return not _is_bot_player(player)
@@ -235,10 +266,14 @@ class DrawPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'DrawPage')
+
 
 class ChoicePage(Page):
     form_model  = 'player'
-    form_fields = ['guess']
+    form_fields = ['guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -265,6 +300,7 @@ class ChoicePage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ChoicePage')
         # In bot rounds, ResultsWaitPage is skipped entirely (is_displayed=False).
         # P1 therefore computes and stores all group results here immediately after
         # submitting their guess — no cross-player synchronisation is needed.
@@ -311,15 +347,15 @@ class ResultsWaitPage(WaitPage):
 
     @staticmethod
     def is_displayed(player):
-        # Bot rounds (1-6): WaitPage is skipped for all players.
+        # Bot round (1-3): WaitPage is skipped for all players.
         # Results are computed in ChoicePage.before_next_page for P1 instead,
         # because P2 (bot) has no browser and can never arrive here.
-        # Human rounds (7-12): both players must arrive before results are shown.
+        # Human round (4-6): both players must arrive before results are shown.
         return not _is_bot_match(player.round_number)
 
     @staticmethod
     def after_all_players_arrive(group):
-        # Only called in human rounds (7-12).
+        # Only called in the human round (4-6).
         p1  = group.get_player_by_id(1)
         p2  = group.get_player_by_id(2)
         jar = _get_jar(group.session.code, _match_number(group.round_number))
@@ -361,6 +397,9 @@ class ResultsWaitPage(WaitPage):
 
 
 class ResultsPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return not _is_bot_player(player)
@@ -379,9 +418,16 @@ class ResultsPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ResultsPage')
+
 
 class MatchSummaryPage(Page):
-    """Shown at the end of each match (rounds 3, 6, 9, 12): reveals this match's total payoff."""
+    """Shown at the end of each match (rounds 3, 6): reveals this match's total payoff."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def is_displayed(player):
@@ -403,6 +449,10 @@ class MatchSummaryPage(Page):
             is_last_match=match == C.NUM_MATCHES,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
+
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'MatchSummaryPage')
 
 
 page_sequence = [

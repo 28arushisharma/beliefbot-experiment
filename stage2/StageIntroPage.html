@@ -9,7 +9,7 @@
 
 <div class="card mb-4 shadow-sm">
   <div class="card-header fw-semibold bg-primary text-white">
-    Stage 2 &mdash; Sequential Information Acquisition
+    Stage 2
   </div>
   <div class="card-body">
     <p>
@@ -31,7 +31,7 @@
       </li>
       <li>
         <strong>Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }}:</strong>
-        all draws come from a <em>new</em> jar (Jar 2), which may be different from Jar 1.
+        the jar may change &mdash; all draws come from Jar 2, which may be different from Jar 1.
       </li>
     </ul>
     <p class="mb-0 text-muted" style="font-size: 0.9rem;">
@@ -82,5 +82,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

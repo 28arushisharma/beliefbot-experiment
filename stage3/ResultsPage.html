@@ -21,7 +21,7 @@
           <td class="fw-semibold">{{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }}</td>
         </tr>
         <tr>
-          <td class="pe-4 text-muted">Opponent's guess</td>
+          <td class="pe-4 text-muted">The other player's guess</td>
           <td class="fw-semibold {% if partner_guess == 'Red' %}text-danger{% else %}text-primary{% endif %}">
             {{ partner_guess }} Jar
           </td>
@@ -40,5 +40,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

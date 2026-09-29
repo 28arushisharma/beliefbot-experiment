@@ -11,7 +11,7 @@
   <div class="card-body text-muted" style="font-size: 0.9rem;">
     <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
     <span class="float-end">
-      <span class="badge bg-secondary">vs opponent</span>
+      <span class="badge bg-secondary">vs the other player</span>
     </span>
   </div>
 </div>
@@ -78,5 +78,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

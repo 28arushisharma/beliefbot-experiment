@@ -13,8 +13,7 @@ Rounds 4-6: jar group 2 (always the opposite colour of group 1).
 
 Each round resets to a full 20-ball jar. Participants see 6 initial balls
 drawn without replacement, then may pay $2 per ball for up to 4 more
-(10 balls total). The first additional ball is rigged to match the jar
-majority colour; subsequent ones are truly random from the remaining jar.
+(10 balls total), each drawn randomly from the remaining jar.
 
 Payoff: $5 correct (all rounds). Wrong guess: $0 in rounds 1-3, -$3 in rounds 4-6.
 Additional balls cost $2 each. Net payoff can be negative.
@@ -60,6 +59,10 @@ class Group(BaseGroup):
 
 
 class Player(BasePlayer):
+    # Seconds between page load and submit (set by JS on every page).
+    # time_on_page holds the most recent page; page_times keeps every page this round.
+    time_on_page = models.IntegerField(initial=0)
+    page_times   = models.LongStringField(initial='{}')
     # Jar
     jar_group      = models.IntegerField()   # 1 (rounds 1-3) or 2 (rounds 4-6)
     jar_assignment = models.StringField()    # 'Red' or 'Blue'
@@ -83,7 +86,7 @@ class Player(BasePlayer):
         choices=_WANT_CHOICES, label=_WANT_LABEL, widget=widgets.RadioSelect,
         blank=True, initial=False)
 
-    # Additional ball results (add_ball_1 is always the rigged draw)
+    # Additional ball results (drawn randomly from the remaining jar)
     add_ball_1 = models.StringField(blank=True)
     add_ball_2 = models.StringField(blank=True)
     add_ball_3 = models.StringField(blank=True)
@@ -154,9 +157,8 @@ def _compute_all_draws(session_code, round_number):
 
     Jar is determined by jar group (same within rounds 1-3 and 4-6 respectively).
     Draws are WITHOUT REPLACEMENT per round: the full 20-ball jar is shuffled
-    independently each round. The first 6 balls are the initial draw.
-    additional_balls[0] = rigged ball (majority colour).
-    additional_balls[1-3] = truly random from the remaining jar.
+    independently each round. The first 6 balls are the initial draw;
+    additional balls are drawn randomly, in order, from what remains.
     """
     jar    = _get_jar(session_code, _jar_group(round_number))
     rng    = np.random.default_rng(_seed_draw(session_code, round_number))
@@ -168,11 +170,7 @@ def _compute_all_draws(session_code, round_number):
     initial   = balls[:C.N_INITIAL_DRAWS].tolist()
     remaining = balls[C.N_INITIAL_DRAWS:].tolist()
 
-    majority   = 'R' if jar == 'Red' else 'B'
-    rigged_idx = next(i for i, b in enumerate(remaining) if b == majority)
-    rigged     = remaining.pop(rigged_idx)
-
-    additional = [rigged] + remaining[:C.MAX_ADDITIONAL - 1]
+    additional = remaining[:C.MAX_ADDITIONAL]
     return jar, initial, additional
 
 
@@ -240,8 +238,8 @@ def _instructions_vars():
     return dict(
         stage_instructions_bullets=[
             'See 6 balls drawn from a 20-ball jar (without replacement).',
-            'Buy up to 4 extra balls at $2 each; the first extra ball matches the jar majority.',
-            'Guess the jar: earn $5 if correct, $0 if wrong, minus cost of extra balls.',
+            'Buy up to 4 extra balls at $2 each, drawn randomly from what remains in the jar.',
+            'Guess the jar: earn $5 if correct; if wrong, $0 in rounds 1–3 and −$3 in rounds 4–6. Extra-ball costs are subtracted.',
             'Net payoff can be negative if you buy many balls and guess wrong.',
         ],
         show_payoff_table=False,
@@ -257,9 +255,21 @@ def creating_session(subsession):
         player.jar_assignment = _get_jar(player.session.code, g)
 
 
+# ── Time-on-page tracking ─────────────────────────────────────────────────────
+
+def _record_time_on_page(player, page_name):
+    """Copy this page's time_on_page (seconds) into the per-round page_times JSON log."""
+    times = json.loads(player.page_times)
+    times[page_name] = player.time_on_page
+    player.page_times = json.dumps(times)
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────
 
 class StageIntroPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player): return player.round_number == 1
 
@@ -274,9 +284,16 @@ class StageIntroPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'StageIntroPage')
+
 
 class JarChangePage(Page):
     """Transition shown at round 4: jar group 2 begins."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def is_displayed(player): return player.round_number == C.ROUNDS_PER_JAR + 1
@@ -296,12 +313,16 @@ class JarChangePage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'JarChangePage')
+
 
 class DrawPage(Page):
     """Show 6 initial balls; ask whether to buy an additional ball."""
 
     form_model  = 'player'
-    form_fields = ['want_additional_1']
+    form_fields = ['want_additional_1', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -331,6 +352,7 @@ class DrawPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'DrawPage')
         jar, initial, _ = _compute_all_draws(player.session.code, player.round_number)
         player.initial_balls           = json.dumps(initial)
         player.initial_red             = initial.count('R')
@@ -340,7 +362,7 @@ class DrawPage(Page):
 
 class AdditionalDrawPage1(Page):
     form_model  = 'player'
-    form_fields = ['want_additional_2']
+    form_fields = ['want_additional_2', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -354,12 +376,14 @@ class AdditionalDrawPage1(Page):
     def vars_for_template(player): return _adddraw_vars(player, 1)
 
     @staticmethod
-    def before_next_page(player, timeout_happened): _adddraw_store(player, 1)
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'AdditionalDrawPage1')
+        _adddraw_store(player, 1)
 
 
 class AdditionalDrawPage2(Page):
     form_model  = 'player'
-    form_fields = ['want_additional_3']
+    form_fields = ['want_additional_3', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -373,12 +397,14 @@ class AdditionalDrawPage2(Page):
     def vars_for_template(player): return _adddraw_vars(player, 2)
 
     @staticmethod
-    def before_next_page(player, timeout_happened): _adddraw_store(player, 2)
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'AdditionalDrawPage2')
+        _adddraw_store(player, 2)
 
 
 class AdditionalDrawPage3(Page):
     form_model  = 'player'
-    form_fields = ['want_additional_4']
+    form_fields = ['want_additional_4', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -392,11 +418,16 @@ class AdditionalDrawPage3(Page):
     def vars_for_template(player): return _adddraw_vars(player, 3)
 
     @staticmethod
-    def before_next_page(player, timeout_happened): _adddraw_store(player, 3)
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'AdditionalDrawPage3')
+        _adddraw_store(player, 3)
 
 
 class AdditionalDrawPage4(Page):
     """Show the 4th (final) additional ball. No further purchase option."""
+
+    form_model  = 'player'
+    form_fields = ['time_on_page']
 
     @staticmethod
     def is_displayed(player): return player.want_additional_4
@@ -405,12 +436,14 @@ class AdditionalDrawPage4(Page):
     def vars_for_template(player): return _adddraw_vars(player, 4)
 
     @staticmethod
-    def before_next_page(player, timeout_happened): _adddraw_store(player, 4)
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'AdditionalDrawPage4')
+        _adddraw_store(player, 4)
 
 
 class ChoicePage(Page):
     form_model  = 'player'
-    form_fields = ['guess']
+    form_fields = ['guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -443,6 +476,7 @@ class ChoicePage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ChoicePage')
         jar, initial, additional = _compute_all_draws(player.session.code, player.round_number)
         n         = player.n_additional_draws
         all_balls = initial + additional[:n]
@@ -460,6 +494,9 @@ class ChoicePage(Page):
 
 
 class ResultsPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def vars_for_template(player):
         jar, initial, additional = _compute_all_draws(player.session.code, player.round_number)
@@ -483,7 +520,6 @@ class ResultsPage(Page):
             red_balls=list(range(all_balls.count('R'))),
             blue_balls=list(range(all_balls.count('B'))),
             n_total=len(all_balls),
-            jar_assignment=player.jar_assignment,
             jar_group=g,
             round_in_group=rig,
             group_start=group_start,
@@ -504,6 +540,10 @@ class ResultsPage(Page):
             is_last_round=player.round_number == C.NUM_ROUNDS,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
+
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ResultsPage')
 
 
 page_sequence = [

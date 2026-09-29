@@ -38,7 +38,7 @@
       </li>
       <li>
         <strong>Rounds {{ rounds_per_jar_plus_1 }}&ndash;{{ C.NUM_ROUNDS }}:</strong>
-        all draws come from a <em>new</em> jar (Jar 2), which may be different from Jar 1.
+        the jar may change &mdash; all draws come from Jar 2, which may be different from Jar 1.
       </li>
     </ul>
     <p>
@@ -64,5 +64,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

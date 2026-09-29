@@ -49,7 +49,7 @@
       &nbsp;&nbsp;|&nbsp;&nbsp;
       <span class="text-primary fw-semibold">Blue Jar</span> = 14 blue, 6 red
     </p>
-    {% formfields %}
+    {% formfield player.guess %}
   </div>
 </div>
 
@@ -58,5 +58,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

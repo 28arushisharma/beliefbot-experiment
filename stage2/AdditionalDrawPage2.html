@@ -102,7 +102,7 @@
       Each additional ball costs <strong>${{ draw_cost }}</strong>.
       You have used {{ add_draw_number }} of {{ max_additional }} additional draws.
     </p>
-    {% formfields %}
+    {% formfield player.want_additional_3 %}
   </div>
 </div>
 {% endif %}
@@ -112,5 +112,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

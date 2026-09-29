@@ -11,7 +11,7 @@
   <div class="card-body text-muted" style="font-size: 0.9rem;">
     <strong>Round {{ round_in_match }} of {{ C.ROUNDS_PER_MATCH }} in Match {{ match_number }}</strong>
     <span class="float-end">
-      <span class="badge bg-secondary">vs reader</span>
+      <span class="badge bg-secondary">vs the other player</span>
     </span>
   </div>
 </div>
@@ -41,7 +41,7 @@
 
 <div class="card mb-4 border-warning shadow-sm">
   <div class="card-header fw-semibold text-warning-emphasis">
-    Sample shown to your reader &mdash; {{ C.SAMPLE_SIZE }} balls
+    Sample shown to the other player &mdash; {{ C.SAMPLE_SIZE }} balls
   </div>
   <div class="card-body">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -70,7 +70,7 @@
       </tbody>
     </table>
     <p class="text-muted mt-2 mb-0" style="font-size:0.85rem;">
-      Your reader sees only these {{ C.SAMPLE_SIZE }} balls. They may request up to {{ C.MAX_ADDITIONAL }} additional draws.
+      The other player sees only these {{ C.SAMPLE_SIZE }} balls. They may request up to {{ C.MAX_ADDITIONAL }} additional draws.
     </p>
   </div>
 </div>
@@ -79,9 +79,9 @@
   <div class="card-header fw-semibold">Your guess</div>
   <div class="card-body">
     <p class="text-muted mb-3" style="font-size:0.9rem;">
-      Your reader is reviewing the sample and making their own guess independently.
+      The other player is reviewing the sample and making their own guess independently.
     </p>
-    {% formfields %}
+    {% formfield player.guess %}
   </div>
 </div>
 
@@ -97,5 +97,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

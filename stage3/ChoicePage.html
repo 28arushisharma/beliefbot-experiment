@@ -50,9 +50,9 @@
   <div class="card-header fw-semibold">Your guess</div>
   <div class="card-body">
     <p class="text-muted mb-3" style="font-size:0.9rem;">
-      Your opponent is also making their choice independently.
+      The other player is also making their choice independently.
     </p>
-    {% formfields %}
+    {% formfield player.guess %}
   </div>
 </div>
 
@@ -61,5 +61,7 @@
 {% next_button %}
 
 {% include '_base_instructions.html' %}
+
+{% include '_time_on_page.html' %}
 
 {% endblock %}

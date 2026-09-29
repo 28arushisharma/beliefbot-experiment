@@ -58,7 +58,9 @@ Requires these context variables from vars_for_template:
       <tr>
         <td style="padding:3px 6px;border:1px solid #e0e0e0;">You wrong, other correct</td>
         <td style="padding:3px 6px;border:1px solid #e0e0e0;text-align:right;
-                   color:#6c757d;font-weight:600;">${{ payoff_one_wrong }}</td>
+                   color:#6c757d;font-weight:600;">
+          {% if payoff_one_wrong >= 0 %}${{ payoff_one_wrong }}{% else %}&minus;${{ abs_payoff_one_wrong }}{% endif %}
+        </td>
       </tr>
     </table>
     {% endif %}

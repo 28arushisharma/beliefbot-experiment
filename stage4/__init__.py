@@ -20,18 +20,18 @@ Good bot reader: Bayesian (lam_confirm=0, lam_disconfirm=0)  → guesses higher-
 Bad  bot reader: Biased  (lam_confirm=0, lam_disconfirm=0.9) → guesses opposite of posterior mode.
 
 Payoffs per sub-round:
-  Both correct:  $30
-  Both wrong:    $0  in computer matches (rounds 1-6), $20 in human matches (rounds 7-12)
-  One correct:   $10 for correct / $0 for wrong
+  Both correct:            $30 / $30
+  Both wrong:               $0 / $0
+  You correct, other wrong: $10 for you, -$3 for them
+  You wrong, other correct: -$3 for you, $10 for them
 
 ResultsPage does not reveal the true jar colour.
 """
 
-PAYOFF_BOTH_CORRECT       = 30
-PAYOFF_BOTH_WRONG_COMPUTER = 0
-PAYOFF_BOTH_WRONG_HUMAN    = 20
-PAYOFF_ONE_CORRECT        = 10
-PAYOFF_ONE_WRONG          = 0
+PAYOFF_BOTH_CORRECT         = 30
+PAYOFF_BOTH_WRONG           = 0
+PAYOFF_CORRECT_OTHER_WRONG  = 10
+PAYOFF_WRONG_OTHER_CORRECT  = -3
 
 
 class C(BaseConstants):
@@ -52,10 +52,9 @@ class C(BaseConstants):
     BLUE_JAR_BLUE = 14
 
     PAYOFF_BOTH_CORRECT        = PAYOFF_BOTH_CORRECT
-    PAYOFF_BOTH_WRONG_COMPUTER = PAYOFF_BOTH_WRONG_COMPUTER
-    PAYOFF_BOTH_WRONG_HUMAN    = PAYOFF_BOTH_WRONG_HUMAN
-    PAYOFF_ONE_CORRECT         = PAYOFF_ONE_CORRECT
-    PAYOFF_ONE_WRONG           = PAYOFF_ONE_WRONG
+    PAYOFF_BOTH_WRONG          = PAYOFF_BOTH_WRONG
+    PAYOFF_CORRECT_OTHER_WRONG = PAYOFF_CORRECT_OTHER_WRONG
+    PAYOFF_WRONG_OTHER_CORRECT = PAYOFF_WRONG_OTHER_CORRECT
 
 
 class Subsession(BaseSubsession):
@@ -67,6 +66,10 @@ class Group(BaseGroup):
 
 
 class Player(BasePlayer):
+    # Seconds between page load and submit (set by JS on every page).
+    # time_on_page holds the most recent page; page_times keeps every page this round.
+    time_on_page = models.IntegerField(initial=0)
+    page_times   = models.LongStringField(initial='{}')
     jar_assignment = models.StringField()
     guess = models.StringField(
         choices=[['Red',  'Red Jar (14 red, 6 blue)'],
@@ -176,10 +179,6 @@ def _compute_posteriors(n_draws, k_red):
     return float(engine_good.belief[1]), float(engine_bad.belief[1])
 
 
-def _both_wrong_payoff(round_number):
-    return PAYOFF_BOTH_WRONG_COMPUTER if _is_bot_match(round_number) else PAYOFF_BOTH_WRONG_HUMAN
-
-
 def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
     """Deterministic per-round shuffle so red/blue balls display in mixed order."""
     colors = ['R'] * n_red + ['B'] * n_blue
@@ -188,7 +187,7 @@ def _shuffled_ball_order(session_code, salt, round_number, n_red, n_blue):
     return colors
 
 
-def _assign_payoffs(p1, p2, jar, round_number):
+def _assign_payoffs(p1, p2, jar):
     p1.is_correct = (p1.guess == jar)
     p2.is_correct = (p2.guess == jar)
     both_correct = p1.is_correct and p2.is_correct
@@ -197,29 +196,28 @@ def _assign_payoffs(p1, p2, jar, round_number):
         p1.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
         p2.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
     elif both_wrong:
-        bw = float(_both_wrong_payoff(round_number))
-        p1.payoff_this_round = bw
-        p2.payoff_this_round = bw
+        p1.payoff_this_round = float(PAYOFF_BOTH_WRONG)
+        p2.payoff_this_round = float(PAYOFF_BOTH_WRONG)
     else:
-        p1.payoff_this_round = float(PAYOFF_ONE_CORRECT if p1.is_correct else PAYOFF_ONE_WRONG)
-        p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
+        p1.payoff_this_round = float(PAYOFF_CORRECT_OTHER_WRONG if p1.is_correct else PAYOFF_WRONG_OTHER_CORRECT)
+        p2.payoff_this_round = float(PAYOFF_CORRECT_OTHER_WRONG if p2.is_correct else PAYOFF_WRONG_OTHER_CORRECT)
 
 
 # ── Instructions widget ───────────────────────────────────────────────────────
 
-def _instructions_vars(round_number):
+def _instructions_vars():
     return dict(
         stage_instructions_bullets=[
             'Writer sees all 20 balls and the 6-ball sample sent to Reader.',
-            'Reader sees the sample only; may request up to 3 extra draws (free, all matches).',
-            'Matches 1–2: vs computer Reader. Matches 3–4: vs human Reader.',
+            'Reader sees the sample only; may request up to 3 extra draws (free).',
             'Payoffs depend on both players\' jar guesses — see the payoff table.',
         ],
         show_payoff_table=True,
         payoff_both_correct=PAYOFF_BOTH_CORRECT,
-        payoff_both_wrong=_both_wrong_payoff(round_number),
-        payoff_one_correct=PAYOFF_ONE_CORRECT,
-        payoff_one_wrong=PAYOFF_ONE_WRONG,
+        payoff_both_wrong=PAYOFF_BOTH_WRONG,
+        payoff_one_correct=PAYOFF_CORRECT_OTHER_WRONG,
+        payoff_one_wrong=PAYOFF_WRONG_OTHER_CORRECT,
+        abs_payoff_one_wrong=abs(PAYOFF_WRONG_OTHER_CORRECT),
     )
 
 
@@ -241,9 +239,21 @@ def creating_session(subsession):
             player.participant.vars['bot_reader_types'] = types
 
 
+# ── Time-on-page tracking ─────────────────────────────────────────────────────
+
+def _record_time_on_page(player, page_name):
+    """Copy this page's time_on_page (seconds) into the per-round page_times JSON log."""
+    times = json.loads(player.page_times)
+    times[page_name] = player.time_on_page
+    player.page_times = json.dumps(times)
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 class StageIntroPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         # Round 1 only; P2 is always a bot at round 1 so this shows only to Writer
@@ -252,12 +262,20 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
-            **_instructions_vars(player.round_number),
+            **_instructions_vars(),
+            abs_payoff_wrong_other_correct=abs(PAYOFF_WRONG_OTHER_CORRECT),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'StageIntroPage')
+
 
 class MatchTransitionPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return player.round_number in (4, 7, 10) and not _is_bot_reader(player)
@@ -279,7 +297,7 @@ class MatchTransitionPage(Page):
             ))
         jar_changes = (player.round_number == 7)  # jar flips at match 3
         return dict(
-            **_instructions_vars(player.round_number),
+            **_instructions_vars(),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
@@ -289,10 +307,14 @@ class MatchTransitionPage(Page):
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'MatchTransitionPage')
+
 
 class WriterPage(Page):
     form_model  = 'player'
-    form_fields = ['guess']
+    form_fields = ['guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -312,7 +334,7 @@ class WriterPage(Page):
         k_red_s  = sample.count('R')
         k_blue_s = sample.count('B')
         return dict(
-            **_instructions_vars(player.round_number),
+            **_instructions_vars(),
             jar=jar,
             all_ball_order=_shuffled_ball_order(player.session.code, 'stage4_writer_all', player.round_number, n_red, n_blue),
             sample_red_balls=list(range(k_red_s)),
@@ -328,6 +350,7 @@ class WriterPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'WriterPage')
         # Bot rounds: ResultsWaitPage and ReaderWaitPage are both skipped.
         # Writer (P1) computes and stores all round results here.
         if not (_is_bot_match(player.round_number) and _is_writer(player)):
@@ -361,7 +384,7 @@ class WriterPage(Page):
         player.posterior_red_good = 1.0 if jar == 'Red' else 0.0
         player.posterior_red_bad  = 1.0 if jar == 'Red' else 0.0
 
-        _assign_payoffs(player, p2, jar, player.round_number)
+        _assign_payoffs(player, p2, jar)
 
         # Update only Writer's cumulative earnings (bot has none)
         prev = player.participant.vars.get('cumulative_earnings', 0)
@@ -376,7 +399,7 @@ class ReaderWaitPage(WaitPage):
     """
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars(player.round_number)
+        return _instructions_vars()
 
     @staticmethod
     def is_displayed(player):
@@ -386,7 +409,7 @@ class ReaderWaitPage(WaitPage):
 
 class ReaderPage(Page):
     form_model  = 'player'
-    form_fields = ['n_additional_draws', 'guess']
+    form_fields = ['n_additional_draws', 'guess', 'time_on_page']
 
     @staticmethod
     def error_message(player, values):
@@ -405,7 +428,7 @@ class ReaderPage(Page):
         k_blue_s  = sample.count('B')
         all_add   = _get_all_additional_draws(player.session.code, player.round_number)
         return dict(
-            **_instructions_vars(player.round_number),
+            **_instructions_vars(),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
             sample_ball_order=_shuffled_ball_order(player.session.code, 'stage4_reader_sample', player.round_number, k_red_s, k_blue_s),
@@ -421,6 +444,7 @@ class ReaderPage(Page):
 
     @staticmethod
     def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ReaderPage')
         sample, _ = _get_sample_and_remaining(player.session.code, player.round_number)
         player.sample_json = json.dumps(sample)
         n_add      = player.n_additional_draws
@@ -437,7 +461,7 @@ class ReaderPage(Page):
 class ResultsWaitPage(WaitPage):
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars(player.round_number)
+        return _instructions_vars()
 
     @staticmethod
     def is_displayed(player):
@@ -464,7 +488,7 @@ class ResultsWaitPage(WaitPage):
                 f"(p1.guess={p1.guess!r}, p2.guess={p2.guess!r})"
             )
 
-        _assign_payoffs(p1, p2, jar, group.round_number)
+        _assign_payoffs(p1, p2, jar)
 
         for p in [p1, p2]:
             prev = p.participant.vars.get('cumulative_earnings', 0)
@@ -472,6 +496,9 @@ class ResultsWaitPage(WaitPage):
 
 
 class ResultsPage(Page):
+    form_model  = 'player'
+    form_fields = ['time_on_page']
+
     @staticmethod
     def is_displayed(player):
         return not _is_bot_reader(player)
@@ -492,16 +519,17 @@ class ResultsPage(Page):
         reader_add_red  = [b for b in reader_add_balls if b == 'R']
         reader_add_blue = [b for b in reader_add_balls if b == 'B']
         return dict(
-            **_instructions_vars(player.round_number),
+            **_instructions_vars(),
             match_number=match,
             round_in_match=rig,
             is_bot_match=_is_bot_match(player.round_number),
             is_writer=_is_writer(player),
             guess=player.guess,
-            is_correct=player.is_correct,
             payoff_this_round=int(player.payoff_this_round),
+            abs_payoff_this_round=int(abs(player.payoff_this_round)),
             partner_guess=partner.guess,
-            partner_is_correct=partner.is_correct,
+            partner_payoff_this_round=int(partner.payoff_this_round),
+            abs_partner_payoff_this_round=int(abs(partner.payoff_this_round)),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
             sample_ball_order=_shuffled_ball_order(player.session.code, 'stage4_results_sample', player.round_number, k_red_s, k_blue_s),
@@ -517,6 +545,10 @@ class ResultsPage(Page):
             is_last_round=player.round_number == C.NUM_ROUNDS,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
+
+    @staticmethod
+    def before_next_page(player, timeout_happened):
+        _record_time_on_page(player, 'ResultsPage')
 
 
 page_sequence = [
