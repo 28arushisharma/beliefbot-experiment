@@ -59,6 +59,7 @@ ROOMS = [
     dict(
         name='confirmationbias',
         display_name='Confirmation Bias Study',
+        participant_label_file='_rooms/pilot.txt',
     ),
 ]
 
