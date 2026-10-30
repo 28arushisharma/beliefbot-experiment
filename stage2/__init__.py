@@ -15,6 +15,11 @@ Each round resets to a full 20-ball jar. Participants see 6 initial balls
 drawn without replacement, then may pay $2 per ball for up to 4 more
 (10 balls total), each drawn randomly from the remaining jar.
 
+The 6 initial balls are rigged (displayed as if random):
+  Rounds 1-4: exactly 3 red, 3 blue.
+  Round 5:    4 of the wrong jar's colour + 2 of the true jar's colour.
+  Round 6:    random.
+
 Payoff: $5 correct (all rounds). Wrong guess: $0 in rounds 1-3, -$3 in rounds 4-6.
 Additional balls cost $2 each. Net payoff can be negative.
 """
@@ -151,14 +156,30 @@ def _get_jar(session_code, jar_group):
     return 'Blue' if jar_1 == 'Red' else 'Red'
 
 
+def _rigged_initial_counts(jar, round_number):
+    """
+    Return (n_red, n_blue) forced for this round's 6 initial balls, or None for a random draw.
+
+    Rounds 1-4: exactly 3 red, 3 blue (uninformative), whatever the true jar.
+    Round 5:    misleading — 4 balls of the wrong jar's colour, 2 of the true jar's colour.
+    Round 6:    random.
+    """
+    if round_number <= 4:
+        return 3, 3
+    if round_number == 5:
+        return (2, 4) if jar == 'Red' else (4, 2)
+    return None
+
+
 def _compute_all_draws(session_code, round_number):
     """
     Return (jar, initial_balls, additional_balls).
 
     Jar is determined by jar group (same within rounds 1-3 and 4-6 respectively).
-    Draws are WITHOUT REPLACEMENT per round: the full 20-ball jar is shuffled
-    independently each round. The first 6 balls are the initial draw;
-    additional balls are drawn randomly, in order, from what remains.
+    Draws are WITHOUT REPLACEMENT per round from a fresh 20-ball jar. The 6 initial
+    balls are rigged in rounds 1-5 (see _rigged_initial_counts) and random in round 6;
+    the rigged balls are taken out of the real jar. Additional balls are always drawn
+    randomly, in order, from what remains.
     """
     jar    = _get_jar(session_code, _jar_group(round_number))
     rng    = np.random.default_rng(_seed_draw(session_code, round_number))
@@ -167,8 +188,17 @@ def _compute_all_draws(session_code, round_number):
     balls  = np.array(['R'] * n_red + ['B'] * n_blue)
     rng.shuffle(balls)
 
-    initial   = balls[:C.N_INITIAL_DRAWS].tolist()
-    remaining = balls[C.N_INITIAL_DRAWS:].tolist()
+    rigged = _rigged_initial_counts(jar, round_number)
+    if rigged is None:
+        initial   = balls[:C.N_INITIAL_DRAWS].tolist()
+        remaining = balls[C.N_INITIAL_DRAWS:].tolist()
+    else:
+        k_red, k_blue = rigged
+        initial   = np.array(['R'] * k_red + ['B'] * k_blue)
+        remaining = np.array(['R'] * (n_red - k_red) + ['B'] * (n_blue - k_blue))
+        rng.shuffle(initial)
+        rng.shuffle(remaining)
+        initial, remaining = initial.tolist(), remaining.tolist()
 
     additional = remaining[:C.MAX_ADDITIONAL]
     return jar, initial, additional

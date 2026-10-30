@@ -1,6 +1,7 @@
 from otree.api import *
 import numpy as np
 import json
+from types import SimpleNamespace
 
 from beliefbot import BeliefEngine, hypergeometric_pmf  # noqa: F401
 
@@ -26,10 +27,9 @@ most strongly points toward the WRONG jar (requires true jar from _get_jar; not 
 Good bot reader: Bayesian (lam_confirm=0, lam_disconfirm=0)  → guesses higher-posterior jar.
 Bad  bot reader: Biased  (lam_confirm=0, lam_disconfirm=0.9) → guesses opposite of posterior mode.
 
-Payoffs per sub-round:
-  Both correct:  $30
-  Both wrong:    $0
-  One correct:   $10 for correct / $0 for wrong
+Payoffs per sub-round depend on who the Writer is matched with:
+  vs computer (conformity):        both correct $30, both wrong $20, one correct $10 / $0
+  vs human    (non-conformity):    both correct $30, both wrong $0,  you correct $10, you wrong −$3
   Reader's net payoff = base payoff − additional draw cost (all matches).
 
 A FinalPage is shown at the very end of the stage with total cumulative earnings
@@ -37,15 +37,19 @@ and a thank-you message.
 """
 
 PAYOFF_BOTH_CORRECT = 30
-PAYOFF_BOTH_WRONG   = 0
 PAYOFF_ONE_CORRECT  = 10
-PAYOFF_ONE_WRONG    = 0
+# Computer matches: conformity payoffs
+PAYOFF_BOTH_WRONG_COMPUTER = 20
+PAYOFF_ONE_WRONG_COMPUTER  = 0
+# Human matches: non-conformity payoffs, with a wrong-answer penalty as in Stage 4
+PAYOFF_BOTH_WRONG_HUMAN = 0
+PAYOFF_ONE_WRONG_HUMAN  = -3
 DRAW_COST_PER_BALL  = 2.0  # ALL matches (no free draws)
 
 
 class C(BaseConstants):
     NAME_IN_URL       = 'stage6'
-    PLAYERS_PER_GROUP = 2
+    PLAYERS_PER_GROUP = None   # pairs formed in creating_session; allows an odd leftover
     NUM_ROUNDS        = 12
     ROUNDS_PER_MATCH  = 3
     NUM_MATCHES       = 4
@@ -63,10 +67,6 @@ class C(BaseConstants):
 
     DRAW_COST_PER_BALL  = DRAW_COST_PER_BALL
 
-    PAYOFF_BOTH_CORRECT = PAYOFF_BOTH_CORRECT
-    PAYOFF_BOTH_WRONG   = PAYOFF_BOTH_WRONG
-    PAYOFF_ONE_CORRECT  = PAYOFF_ONE_CORRECT
-    PAYOFF_ONE_WRONG    = PAYOFF_ONE_WRONG
 
 
 class Subsession(BaseSubsession):
@@ -94,6 +94,11 @@ class Player(BasePlayer):
     payoff_this_round  = models.FloatField(initial=0.0)
     posterior_red_good = models.FloatField(initial=0.5)  # lam_disconfirm=0
     posterior_red_bad  = models.FloatField(initial=0.5)  # lam_disconfirm=0.9
+    # Computer opponent — set on the human Writer in rounds played against the computer
+    vs_computer     = models.BooleanField(initial=False)
+    computer_type   = models.StringField(blank=True)   # 'good' or 'bad'
+    computer_guess  = models.StringField(blank=True)
+    computer_payoff = models.FloatField(initial=0.0)
 
     # Writer fields
     selected_sample_index   = models.IntegerField(initial=-1, blank=True)
@@ -135,8 +140,12 @@ def _get_jar(session_code, round_number):
 
 def _get_candidate_samples(session_code, round_number):
     """
-    Generate N_SAMPLES samples of SAMPLE_SIZE balls each, drawn WITH replacement from the jar.
-    Returns list of lists of 'R'/'B'.
+    Generate N_SAMPLES samples of SAMPLE_SIZE balls each. Returns list of lists of 'R'/'B'.
+
+    Two samples are always included, at random positions:
+      - a 3-3 sample (3 red, 3 blue);
+      - a misleading 4-2 sample (4 of the wrong jar's colour, 2 of the true jar's colour).
+    The rest are drawn WITH replacement from the jar.
     """
     jar   = _get_jar(session_code, round_number)
     n_red = C.RED_JAR_RED if jar == 'Red' else C.BLUE_JAR_RED
@@ -146,6 +155,13 @@ def _get_candidate_samples(session_code, round_number):
         draws = rng.integers(0, C.N_BALLS, size=C.SAMPLE_SIZE)
         balls = ['R' if d < n_red else 'B' for d in draws]
         samples.append(balls)
+
+    wrong, true = ('B', 'R') if jar == 'Red' else ('R', 'B')
+    fixed = [['R'] * 3 + ['B'] * 3, [wrong] * 4 + [true] * 2]
+    positions = rng.choice(C.N_SAMPLES, size=len(fixed), replace=False)
+    for pos, balls in zip(positions.tolist(), fixed):
+        rng.shuffle(balls)
+        samples[pos] = balls
     return samples
 
 
@@ -192,6 +208,25 @@ def _is_reader(player):
 def _is_bot_reader(player):
     return _is_bot_match(player.round_number) and _is_reader(player)
 
+def _is_solo(player):
+    """True for the leftover participant of an odd-sized session (no human partner)."""
+    return len(player.group.get_players()) == 1
+
+def _vs_computer(player):
+    """True when this player's opponent this round is the computer."""
+    return _is_bot_match(player.round_number) or _is_solo(player)
+
+def _computer_type(player):
+    """
+    Scheduled computer matches always use the bad bot. When the computer stands in for
+    a missing human partner (solo participant in a human match), it is randomly good or bad.
+    """
+    if _is_bot_match(player.round_number):
+        return 'bad'
+    return _get_bot_reader_type(
+        player.session.code, player.group.id_in_subsession, _match_number(player.round_number),
+    )
+
 def _match_start_round(match_number):
     return (match_number - 1) * C.ROUNDS_PER_MATCH + 1
 
@@ -230,25 +265,48 @@ def _find_misleading_sample_index(samples, jar):
     return best_idx
 
 
-def _assign_payoffs(p1, p2, jar):
+def _payoff_table(vs_computer):
+    """Base payoffs for one sub-round: conformity vs the computer, non-conformity vs a human."""
+    return dict(
+        both_correct=PAYOFF_BOTH_CORRECT,
+        both_wrong=PAYOFF_BOTH_WRONG_COMPUTER if vs_computer else PAYOFF_BOTH_WRONG_HUMAN,
+        one_correct=PAYOFF_ONE_CORRECT,
+        one_wrong=PAYOFF_ONE_WRONG_COMPUTER if vs_computer else PAYOFF_ONE_WRONG_HUMAN,
+    )
+
+
+def _assign_payoffs(p1, p2, jar, vs_computer):
+    table = _payoff_table(vs_computer)
     p1.is_correct = (p1.guess == jar)
     p2.is_correct = (p2.guess == jar)
     both_correct  = p1.is_correct and p2.is_correct
     both_wrong    = not p1.is_correct and not p2.is_correct
     if both_correct:
-        p1.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
-        p2.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
+        p1.payoff_this_round = float(table['both_correct'])
+        p2.payoff_this_round = float(table['both_correct'])
     elif both_wrong:
-        p1.payoff_this_round = float(PAYOFF_BOTH_WRONG)
-        p2.payoff_this_round = float(PAYOFF_BOTH_WRONG)
+        p1.payoff_this_round = float(table['both_wrong'])
+        p2.payoff_this_round = float(table['both_wrong'])
     else:
-        p1.payoff_this_round = float(PAYOFF_ONE_CORRECT if p1.is_correct else PAYOFF_ONE_WRONG)
-        p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
+        p1.payoff_this_round = float(table['one_correct'] if p1.is_correct else table['one_wrong'])
+        p2.payoff_this_round = float(table['one_correct'] if p2.is_correct else table['one_wrong'])
 
 
 # ── Instructions widget ───────────────────────────────────────────────────────
 
-def _instructions_vars():
+def _payoff_vars(player):
+    """This round's payoff table for templates (names match _base_instructions.html)."""
+    table = _payoff_table(_vs_computer(player))
+    return dict(
+        payoff_both_correct=table['both_correct'],
+        payoff_both_wrong=table['both_wrong'],
+        payoff_one_correct=table['one_correct'],
+        payoff_one_wrong=table['one_wrong'],
+        abs_payoff_one_wrong=abs(table['one_wrong']),
+    )
+
+
+def _instructions_vars(player):
     return dict(
         stage_instructions_bullets=[
             'Writer does NOT know the jar — sees 6 candidate samples only.',
@@ -257,29 +315,29 @@ def _instructions_vars():
             'Payoffs depend on both players\' jar guesses — see the payoff table.',
         ],
         show_payoff_table=True,
-        payoff_both_correct=PAYOFF_BOTH_CORRECT,
-        payoff_both_wrong=PAYOFF_BOTH_WRONG,
-        payoff_one_correct=PAYOFF_ONE_CORRECT,
-        payoff_one_wrong=PAYOFF_ONE_WRONG,
-        abs_payoff_one_wrong=abs(PAYOFF_ONE_WRONG),
+        **_payoff_vars(player),
     )
 
 
 # ── Session creation ──────────────────────────────────────────────────────────
 
+def _pair_players(subsession):
+    """
+    Pair participants in order — [1, 2], [3, 4], ... — fixed for the whole stage.
+    With an odd number, the last participant forms a group of one: they are the Writer
+    and play against a computer Reader in every round.
+    """
+    if subsession.round_number == 1:
+        ids = [p.id_in_subsession for p in subsession.get_players()]
+        subsession.set_group_matrix([ids[i:i + 2] for i in range(0, len(ids), 2)])
+    else:
+        subsession.group_like_round(1)
+
+
 def creating_session(subsession):
+    _pair_players(subsession)
     for player in subsession.get_players():
         player.jar_assignment = _get_jar(player.session.code, subsession.round_number)
-        if subsession.round_number == 1 and player.id_in_group == 2:
-            types = {
-                m: _get_bot_reader_type(
-                    subsession.session.code,
-                    player.group.id_in_subsession,
-                    m,
-                )
-                for m in range(1, C.BOT_MATCHES + 1)
-            }
-            player.participant.vars['bot_reader_types'] = types
 
 
 # ── Time-on-page tracking ─────────────────────────────────────────────────────
@@ -304,9 +362,10 @@ class StageIntroPage(Page):
     @staticmethod
     def vars_for_template(player):
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
             draw_cost_display=int(C.DRAW_COST_PER_BALL),
+            payoff_table_heading='Payoffs per round',
         )
 
     @staticmethod
@@ -335,14 +394,16 @@ class MatchTransitionPage(Page):
         ))
         jar_changes = (player.round_number == 7)
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player),
             match_number=match,
             prev_match_number=prev_match,
             prev_match_net=prev_match_net,
+            abs_prev_match_net=abs(prev_match_net),
             is_vs_human=not _is_bot_match(player.round_number),
             is_writer=_is_writer(player),
             jar_changes=jar_changes,
             draw_cost_display=int(C.DRAW_COST_PER_BALL),
+            payoff_table_heading='Payoffs for this match',
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -383,7 +444,7 @@ class WriterPage(Page):
             ))
 
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player),
             samples_template=samples_template,
             match_number=_match_number(player.round_number),
             round_in_match=_round_in_match(player.round_number),
@@ -414,32 +475,43 @@ class WriterPage(Page):
         k_red_w = selected_sample.count('R')
         player.posterior_red_good, player.posterior_red_bad = _compute_posteriors(C.SAMPLE_SIZE, k_red_w)
 
-        if not _is_bot_match(player.round_number):
+        if not _vs_computer(player):
             return
 
-        # Bot round: compute bot reader result here
-        p2        = player.group.get_player_by_id(2)
-        match_num = _match_number(player.round_number)
-        bot_type  = p2.participant.vars.get('bot_reader_types', {}).get(match_num, 'good')
+        # Computer round (scheduled computer match, or a solo Writer): compute the
+        # computer reader's result here — no waiting for anyone
+        computer_type = _computer_type(player)
 
         k_red_s = selected_sample.count('R')
         post_good, post_bad = _compute_posteriors(C.SAMPLE_SIZE, k_red_s)
 
-        if bot_type == 'good':
+        if computer_type == 'good':
             bot_guess = 'Red' if post_good > 0.5 else 'Blue'
         else:
             bot_guess = 'Blue' if post_bad > 0.5 else 'Red'
+        computer = SimpleNamespace(guess=bot_guess)
 
-        p2.guess                 = bot_guess
-        p2.n_additional_draws    = 0
-        p2.additional_draws_json = json.dumps([])
-        p2.additional_draw_cost  = 0.0  # bot takes 0 draws; cost = 0
-        p2.selected_sample_json  = json.dumps(selected_sample)
-        p2.posterior_red_good    = post_good
-        p2.posterior_red_bad     = post_bad
+        _assign_payoffs(player, computer, jar, vs_computer=True)
 
-        _assign_payoffs(player, p2, jar)
-        # Bot reader has no cumulative earnings; update Writer only
+        player.vs_computer     = True
+        player.computer_type   = computer_type
+        player.computer_guess  = computer.guess
+        player.computer_payoff = computer.payoff_this_round
+
+        # Scheduled computer match: P2's seat plays the computer — keep its record too
+        if not _is_solo(player):
+            p2 = player.group.get_player_by_id(2)
+            p2.guess                 = computer.guess
+            p2.is_correct            = computer.is_correct
+            p2.payoff_this_round     = computer.payoff_this_round
+            p2.n_additional_draws    = 0
+            p2.additional_draws_json = json.dumps([])
+            p2.additional_draw_cost  = 0.0  # computer takes 0 draws; cost = 0
+            p2.selected_sample_json  = json.dumps(selected_sample)
+            p2.posterior_red_good    = post_good
+            p2.posterior_red_bad     = post_bad
+
+        # Computer has no cumulative earnings; update Writer only
         prev = player.participant.vars.get('cumulative_earnings', 0)
         player.participant.vars['cumulative_earnings'] = prev + player.payoff_this_round
 
@@ -448,7 +520,7 @@ class ReaderWaitPage(WaitPage):
     """Reader waits for Writer to submit. Skipped in bot rounds."""
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars()
+        return _instructions_vars(player)
 
     @staticmethod
     def is_displayed(player):
@@ -478,7 +550,7 @@ class ReaderPage(Page):
         k_blue_s = sample.count('B')
         all_add  = _get_all_additional_draws(player.session.code, player.round_number)
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player),
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
             sample_ball_order=_shuffled_ball_order(player.session.code, 'stage6_reader_sample', player.round_number, k_red_s, k_blue_s),
@@ -521,11 +593,11 @@ class ReaderPage(Page):
 class ResultsWaitPage(WaitPage):
     @staticmethod
     def vars_for_template(player):
-        return _instructions_vars()
+        return _instructions_vars(player)
 
     @staticmethod
     def is_displayed(player):
-        return not _is_bot_match(player.round_number)
+        return not _vs_computer(player)
 
     @staticmethod
     def after_all_players_arrive(group):
@@ -539,7 +611,7 @@ class ResultsWaitPage(WaitPage):
                 f"(p1.guess={p1.guess!r}, p2.guess={p2.guess!r})"
             )
 
-        _assign_payoffs(p1, p2, jar)
+        _assign_payoffs(p1, p2, jar, vs_computer=False)
         p2.payoff_this_round -= p2.additional_draw_cost  # net payoff for Reader
 
         for p in [p1, p2]:
@@ -558,7 +630,11 @@ class ResultsPage(Page):
     @staticmethod
     def vars_for_template(player):
         writer   = player.group.get_player_by_id(1)
-        reader   = player.group.get_player_by_id(2)
+        if player.vs_computer:
+            n_add, add_cost = 0, 0.0  # the computer reader never requests additional draws
+        else:
+            reader = player.group.get_player_by_id(2)
+            n_add, add_cost = reader.n_additional_draws, reader.additional_draw_cost
         match    = _match_number(player.round_number)
         rig      = _round_in_match(player.round_number)
         samples  = _get_candidate_samples(player.session.code, player.round_number)
@@ -567,18 +643,18 @@ class ResultsPage(Page):
         k_red_s  = sample.count('R')
         k_blue_s = sample.count('B')
 
-        n_add     = reader.n_additional_draws
         all_add   = _get_all_additional_draws(player.session.code, player.round_number)
         add_balls = all_add[:n_add]
         add_red   = [b for b in add_balls if b == 'R']
         add_blue  = [b for b in add_balls if b == 'B']
 
         return dict(
-            **_instructions_vars(),
+            **_instructions_vars(player),
             match_number=match,
             round_in_match=rig,
             is_writer=_is_writer(player),
             payoff_this_round=int(player.payoff_this_round),
+            abs_payoff_this_round=int(abs(player.payoff_this_round)),
             selected_sample_number=sel_idx + 1,  # 1-based; avoids |add:1 filter in template
             sample_red_balls=list(range(k_red_s)),
             sample_blue_balls=list(range(k_blue_s)),
@@ -586,7 +662,7 @@ class ResultsPage(Page):
             n_red_sample=k_red_s,
             n_blue_sample=k_blue_s,
             reader_n_additional_draws=n_add,
-            reader_add_cost=int(reader.additional_draw_cost),
+            reader_add_cost=int(add_cost),
             reader_add_red_balls=list(range(len(add_red))),
             reader_add_blue_balls=list(range(len(add_blue))),
             reader_add_ball_order=_shuffled_ball_order(

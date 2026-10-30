@@ -81,8 +81,8 @@
     </p>
     <p class="mb-0">
       Your payoff this round:
-      <strong class="{% if payoff_this_round > 0 %}text-success{% else %}text-secondary{% endif %}" style="font-size:1.1rem;">
-        ${{ payoff_this_round }}
+      <strong class="{% if payoff_this_round > 0 %}text-success{% elif payoff_this_round < 0 %}text-danger{% else %}text-secondary{% endif %}" style="font-size:1.1rem;">
+        {% if payoff_this_round < 0 %}&minus;${{ abs_payoff_this_round }}{% else %}${{ payoff_this_round }}{% endif %}
       </strong>
       {% if not is_writer and reader_add_cost > 0 %}
         <span class="text-muted" style="font-size:0.85rem;">

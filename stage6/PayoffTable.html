@@ -1,0 +1,49 @@
+{% comment %}
+Stage 6 payoff table for the current round — included by StageIntroPage and MatchTransitionPage.
+Requires payoff_both_correct / payoff_both_wrong / payoff_one_correct / payoff_one_wrong /
+abs_payoff_one_wrong (from _payoff_vars) and draw_cost_display.
+{% endcomment %}
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header fw-semibold">{{ payoff_table_heading }}</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Outcome</th>
+          <th class="text-center">You earn</th>
+          <th class="text-center">The other player earns</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Both correct</td>
+          <td class="text-center text-success fw-semibold">${{ payoff_both_correct }}</td>
+          <td class="text-center text-success fw-semibold">${{ payoff_both_correct }}</td>
+        </tr>
+        <tr>
+          <td>Both wrong</td>
+          <td class="text-center fw-semibold">${{ payoff_both_wrong }}</td>
+          <td class="text-center fw-semibold">${{ payoff_both_wrong }}</td>
+        </tr>
+        <tr>
+          <td>You correct, the other player wrong</td>
+          <td class="text-center text-success fw-semibold">${{ payoff_one_correct }}</td>
+          <td class="text-center {% if payoff_one_wrong < 0 %}text-danger{% else %}text-secondary{% endif %} fw-semibold">
+            {% if payoff_one_wrong < 0 %}&minus;${{ abs_payoff_one_wrong }}{% else %}${{ payoff_one_wrong }}{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>You wrong, the other player correct</td>
+          <td class="text-center {% if payoff_one_wrong < 0 %}text-danger{% else %}text-secondary{% endif %} fw-semibold">
+            {% if payoff_one_wrong < 0 %}&minus;${{ abs_payoff_one_wrong }}{% else %}${{ payoff_one_wrong }}{% endif %}
+          </td>
+          <td class="text-center text-success fw-semibold">${{ payoff_one_correct }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="text-muted p-2 mb-0" style="font-size:0.85rem;">
+      The Reader's payoff is reduced by ${{ draw_cost_display }} per additional draw in all matches.
+    </p>
+  </div>
+</div>

@@ -84,45 +84,7 @@
   </div>
 </div>
 
-<div class="card mb-4 shadow-sm">
-  <div class="card-header fw-semibold">Payoffs per round</div>
-  <div class="card-body p-0">
-    <table class="table table-sm mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Outcome</th>
-          <th class="text-center">You earn</th>
-          <th class="text-center">Reader earns</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Both correct</td>
-          <td class="text-center text-success fw-semibold">${{ C.PAYOFF_BOTH_CORRECT }}</td>
-          <td class="text-center text-success fw-semibold">${{ C.PAYOFF_BOTH_CORRECT }}</td>
-        </tr>
-        <tr>
-          <td>Both wrong</td>
-          <td class="text-center fw-semibold">${{ C.PAYOFF_BOTH_WRONG }}</td>
-          <td class="text-center fw-semibold">${{ C.PAYOFF_BOTH_WRONG }}</td>
-        </tr>
-        <tr>
-          <td>You correct, Reader wrong</td>
-          <td class="text-center text-success fw-semibold">${{ C.PAYOFF_ONE_CORRECT }}</td>
-          <td class="text-center text-secondary fw-semibold">${{ C.PAYOFF_ONE_WRONG }}</td>
-        </tr>
-        <tr>
-          <td>You wrong, Reader correct</td>
-          <td class="text-center text-secondary fw-semibold">${{ C.PAYOFF_ONE_WRONG }}</td>
-          <td class="text-center text-success fw-semibold">${{ C.PAYOFF_ONE_CORRECT }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="text-muted p-2 mb-0" style="font-size:0.85rem;">
-      Reader's payoff is reduced by ${{ draw_cost_display }} per additional draw in all matches.
-    </p>
-  </div>
-</div>
+{% include 'stage6/PayoffTable.html' %}
 
 <p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
 

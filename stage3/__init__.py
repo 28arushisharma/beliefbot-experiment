@@ -1,6 +1,7 @@
 from otree.api import *
 import numpy as np
 import json
+from types import SimpleNamespace
 
 from beliefbot import BeliefEngine, hypergeometric_pmf  # noqa: F401
 
@@ -12,9 +13,17 @@ The jar changes between every match: each match gets a new, independently random
 assigned jar (Red or Blue), fixed for that match's 3 sub-rounds.
 10 balls drawn per sub-round with replacement.
 
-Match 1 (rounds 1-3): vs computer bot (fixed random choice).
+Match 1 (rounds 1-3): vs computer (always the bad bot).
 Match 2 (rounds 4-6): vs real human partner.
 The bot/human distinction is internal only — never shown to participants.
+
+Participants are paired in order at the start of the stage. With an odd number of
+participants, the leftover one has no human partner: they play the computer in every
+round, instantly (no waiting). When the computer stands in for a missing human
+(match 2), it is randomly good or bad.
+
+Good computer: Bayesian (lam_disconfirm=0)      → guesses the higher-posterior jar.
+Bad  computer: Biased   (lam_disconfirm=0.9)    → guesses opposite of its posterior mode.
 
 Payoffs per sub-round:
   Both correct:  $30
@@ -30,7 +39,7 @@ PAYOFF_ONE_WRONG    = 0
 
 class C(BaseConstants):
     NAME_IN_URL       = 'stage3'
-    PLAYERS_PER_GROUP = 2
+    PLAYERS_PER_GROUP = None   # pairs formed in creating_session; allows an odd leftover
     NUM_ROUNDS        = 6
     ROUNDS_PER_MATCH  = 3
     NUM_MATCHES       = 2
@@ -75,6 +84,11 @@ class Player(BasePlayer):
     is_correct        = models.BooleanField(initial=False)
     payoff_this_round = models.FloatField(initial=0.0)
     posterior_red     = models.FloatField(initial=0.5)
+    # Computer opponent — set on the human player in rounds played against the computer
+    vs_computer     = models.BooleanField(initial=False)
+    computer_type   = models.StringField(blank=True)   # 'good' or 'bad'
+    computer_guess  = models.StringField(blank=True)
+    computer_payoff = models.FloatField(initial=0.0)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -85,8 +99,8 @@ def _seed_jar(session_code, match_number):
 def _seed_draw(session_code, round_number):
     return abs(hash((session_code, 'stage3_draw', round_number))) % (2 ** 31)
 
-def _seed_bot(session_code, group_id):
-    return abs(hash((session_code, 'stage3_bot', group_id))) % (2 ** 31)
+def _seed_computer_type(session_code, group_id, match_number):
+    return abs(hash((session_code, 'stage3_computer_type', group_id, match_number))) % (2 ** 31)
 
 
 def _get_jar(session_code, match_number):
@@ -112,12 +126,6 @@ def _get_draw(session_code, round_number):
     return k_red, C.N_DRAWS - k_red
 
 
-def _get_bot_choice(session_code, group_id):
-    """Fixed bot choice for a given group: Red or Blue."""
-    rng = np.random.default_rng(_seed_bot(session_code, group_id))
-    return 'Red' if rng.integers(0, 2) == 0 else 'Blue'
-
-
 def _match_number(round_number):
     return (round_number - 1) // C.ROUNDS_PER_MATCH + 1
 
@@ -131,6 +139,14 @@ def _is_bot_player(player):
     """Player 2 in bot matches acts as computer opponent; all their pages are hidden."""
     return _is_bot_match(player.round_number) and player.id_in_group == 2
 
+def _is_solo(player):
+    """True for the leftover participant of an odd-sized session (no human partner)."""
+    return len(player.group.get_players()) == 1
+
+def _vs_computer(player):
+    """True when this player's opponent this round is the computer."""
+    return _is_bot_match(player.round_number) or _is_solo(player)
+
 def _match_start_round(match_number):
     return (match_number - 1) * C.ROUNDS_PER_MATCH + 1
 
@@ -143,6 +159,46 @@ def _posterior(draw_red):
     engine = BeliefEngine(n_balls=C.N_BALLS, hypotheses=[C.BLUE_JAR_RED, C.RED_JAR_RED])
     engine.update(n_draws=C.N_DRAWS, k_red=draw_red)
     return float(engine.belief[1])
+
+
+def _computer_type(player):
+    """
+    Scheduled computer matches always use the bad bot. When the computer stands in for
+    a missing human partner (solo participant in a human match), it is randomly good or bad.
+    """
+    if _is_bot_match(player.round_number):
+        return 'bad'
+    rng = np.random.default_rng(_seed_computer_type(
+        player.session.code, player.group.id_in_subsession, _match_number(player.round_number),
+    ))
+    return 'good' if rng.integers(0, 2) == 0 else 'bad'
+
+
+def _computer_guess(computer_type, draw_red):
+    """Good: guess the higher-posterior jar. Bad (lam_disconfirm=0.9): guess the opposite of its posterior mode."""
+    lam_disconfirm = 0.0 if computer_type == 'good' else 0.9
+    engine = BeliefEngine(n_balls=C.N_BALLS, hypotheses=[C.BLUE_JAR_RED, C.RED_JAR_RED])
+    engine.update_asymmetric(C.N_DRAWS, draw_red, lam_confirm=0.0, lam_disconfirm=lam_disconfirm)
+    favours_red = float(engine.belief[1]) > 0.5
+    if computer_type == 'good':
+        return 'Red' if favours_red else 'Blue'
+    return 'Blue' if favours_red else 'Red'
+
+
+def _assign_payoffs(p1, p2, jar):
+    p1.is_correct = (p1.guess == jar)
+    p2.is_correct = (p2.guess == jar)
+    both_correct  = p1.is_correct and p2.is_correct
+    both_wrong    = not p1.is_correct and not p2.is_correct
+    if both_correct:
+        p1.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
+        p2.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
+    elif both_wrong:
+        p1.payoff_this_round = float(PAYOFF_BOTH_WRONG)
+        p2.payoff_this_round = float(PAYOFF_BOTH_WRONG)
+    else:
+        p1.payoff_this_round = float(PAYOFF_ONE_CORRECT if p1.is_correct else PAYOFF_ONE_WRONG)
+        p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
 
 
 # ── Instructions widget ───────────────────────────────────────────────────────
@@ -165,15 +221,22 @@ def _instructions_vars():
 
 # ── Session creation ──────────────────────────────────────────────────────────
 
+def _pair_players(subsession):
+    """
+    Pair participants in order — [1, 2], [3, 4], ... — fixed for the whole stage.
+    With an odd number, the last participant forms a group of one and plays the computer.
+    """
+    if subsession.round_number == 1:
+        ids = [p.id_in_subsession for p in subsession.get_players()]
+        subsession.set_group_matrix([ids[i:i + 2] for i in range(0, len(ids), 2)])
+    else:
+        subsession.group_like_round(1)
+
+
 def creating_session(subsession):
+    _pair_players(subsession)
     for player in subsession.get_players():
         player.jar_assignment = _get_jar(player.session.code, _match_number(subsession.round_number))
-        if subsession.round_number == 1 and player.id_in_group == 2:
-            bot_choice = _get_bot_choice(
-                subsession.session.code,
-                player.group.id_in_subsession,
-            )
-            player.participant.vars['bot_choice'] = bot_choice
 
 
 # ── Time-on-page tracking ─────────────────────────────────────────────────────
@@ -301,13 +364,12 @@ class ChoicePage(Page):
     @staticmethod
     def before_next_page(player, timeout_happened):
         _record_time_on_page(player, 'ChoicePage')
-        # In bot rounds, ResultsWaitPage is skipped entirely (is_displayed=False).
-        # P1 therefore computes and stores all group results here immediately after
-        # submitting their guess — no cross-player synchronisation is needed.
-        if not (_is_bot_match(player.round_number) and player.id_in_group == 1):
+        # Rounds against the computer (scheduled computer match, or a solo participant)
+        # skip ResultsWaitPage, so results are computed here as soon as the guess is in —
+        # no waiting for anyone.
+        if not _vs_computer(player):
             return
 
-        p2  = player.group.get_player_by_id(2)
         jar = _get_jar(player.session.code, _match_number(player.round_number))
         draw_red, draw_blue = _get_draw(player.session.code, player.round_number)
 
@@ -315,26 +377,25 @@ class ChoicePage(Page):
         player.group.draw_blue        = draw_blue
         player.group.balls_drawn_json = json.dumps(['R'] * draw_red + ['B'] * draw_blue)
 
-        p2.guess          = p2.participant.vars.get('bot_choice', 'Red')
-        player.is_correct = (player.guess == jar)
-        p2.is_correct     = (p2.guess == jar)
+        computer_type = _computer_type(player)
+        computer = SimpleNamespace(guess=_computer_guess(computer_type, draw_red))
+        _assign_payoffs(player, computer, jar)
 
-        both_correct = player.is_correct and p2.is_correct
-        both_wrong   = not player.is_correct and not p2.is_correct
-
-        if both_correct:
-            player.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
-            p2.payoff_this_round     = float(PAYOFF_BOTH_CORRECT)
-        elif both_wrong:
-            player.payoff_this_round = float(PAYOFF_BOTH_WRONG)
-            p2.payoff_this_round     = float(PAYOFF_BOTH_WRONG)
-        else:
-            player.payoff_this_round = float(PAYOFF_ONE_CORRECT if player.is_correct else PAYOFF_ONE_WRONG)
-            p2.payoff_this_round     = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
+        player.vs_computer     = True
+        player.computer_type   = computer_type
+        player.computer_guess  = computer.guess
+        player.computer_payoff = computer.payoff_this_round
 
         post = _posterior(draw_red)
         player.posterior_red = post
-        p2.posterior_red     = post
+
+        # Scheduled computer match: P2's seat plays the computer — keep its record too
+        if not _is_solo(player):
+            p2 = player.group.get_player_by_id(2)
+            p2.guess             = computer.guess
+            p2.is_correct        = computer.is_correct
+            p2.payoff_this_round = computer.payoff_this_round
+            p2.posterior_red     = post
 
         prev = player.participant.vars.get('cumulative_earnings', 0)
         player.participant.vars['cumulative_earnings'] = prev + player.payoff_this_round
@@ -347,11 +408,11 @@ class ResultsWaitPage(WaitPage):
 
     @staticmethod
     def is_displayed(player):
-        # Bot round (1-3): WaitPage is skipped for all players.
-        # Results are computed in ChoicePage.before_next_page for P1 instead,
-        # because P2 (bot) has no browser and can never arrive here.
+        # Computer rounds (bot match 1-3, or solo participant): skipped for all players.
+        # Results are computed in ChoicePage.before_next_page instead,
+        # because the computer has no browser and can never arrive here.
         # Human round (4-6): both players must arrive before results are shown.
-        return not _is_bot_match(player.round_number)
+        return not _vs_computer(player)
 
     @staticmethod
     def after_all_players_arrive(group):
@@ -371,21 +432,7 @@ class ResultsWaitPage(WaitPage):
                 f"(p1.guess={p1.guess!r}, p2.guess={p2.guess!r})"
             )
 
-        p1.is_correct = (p1.guess == jar)
-        p2.is_correct = (p2.guess == jar)
-
-        both_correct = p1.is_correct and p2.is_correct
-        both_wrong   = not p1.is_correct and not p2.is_correct
-
-        if both_correct:
-            p1.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
-            p2.payoff_this_round = float(PAYOFF_BOTH_CORRECT)
-        elif both_wrong:
-            p1.payoff_this_round = float(PAYOFF_BOTH_WRONG)
-            p2.payoff_this_round = float(PAYOFF_BOTH_WRONG)
-        else:
-            p1.payoff_this_round = float(PAYOFF_ONE_CORRECT if p1.is_correct else PAYOFF_ONE_WRONG)
-            p2.payoff_this_round = float(PAYOFF_ONE_CORRECT if p2.is_correct else PAYOFF_ONE_WRONG)
+        _assign_payoffs(p1, p2, jar)
 
         post = _posterior(draw_red)
         p1.posterior_red = post
@@ -406,7 +453,10 @@ class ResultsPage(Page):
 
     @staticmethod
     def vars_for_template(player):
-        partner = player.group.get_player_by_id(3 - player.id_in_group)
+        if player.vs_computer:
+            partner_guess = player.computer_guess
+        else:
+            partner_guess = player.group.get_player_by_id(3 - player.id_in_group).guess
         match   = _match_number(player.round_number)
         rig     = _round_in_match(player.round_number)
         return dict(
@@ -414,7 +464,7 @@ class ResultsPage(Page):
             match_number=match,
             round_in_match=rig,
             is_bot_match=_is_bot_match(player.round_number),
-            partner_guess=partner.guess,
+            partner_guess=partner_guess,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 

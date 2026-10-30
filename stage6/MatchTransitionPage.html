@@ -12,8 +12,8 @@
   <div class="card-body">
     <p class="mb-1">
       Your earnings from Match {{ prev_match_number }}:
-      <strong class="{% if prev_match_net > 0 %}text-success{% else %}text-secondary{% endif %}">
-        ${{ prev_match_net }}
+      <strong class="{% if prev_match_net > 0 %}text-success{% elif prev_match_net < 0 %}text-danger{% else %}text-secondary{% endif %}">
+        {% if prev_match_net < 0 %}&minus;${{ abs_prev_match_net }}{% else %}${{ prev_match_net }}{% endif %}
       </strong>
     </p>
     <p class="text-muted mb-0" style="font-size:0.88rem;">
@@ -59,6 +59,8 @@
     {% endif %}
   </div>
 </div>
+
+{% include 'stage6/PayoffTable.html' %}
 
 <p class="text-muted" style="font-size:0.85rem;"><em>Do not refresh this page.</em></p>
 
