@@ -47,13 +47,13 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:stable
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # The task definition uses the untagged image (:latest), so a forced
-      # deployment is enough to start tasks on the image pushed above.
+      # The task definition uses the :stable image, so a forced deployment is
+      # enough to start tasks on the image pushed above.
       - name: Restart ECS service
         run: |
           deployment_id=$(aws ecs update-service \
