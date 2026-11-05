@@ -50,7 +50,7 @@ SESSION_CONFIGS = [
     dict(
         name='full_experiment',
         display_name='Full Experiment (Stages 1–6)',
-        app_sequence=['intro', 'stage1', 'stage2', 'stage3', 'stage_break', 'stage4', 'stage5', 'stage6'],
+        app_sequence=['intro', 'stage1', 'stage2', 'stage3', 'stage4', 'stage5', 'stage6'],
         num_demo_participants=2,
     ),
 ]
