@@ -23,7 +23,7 @@ round, instantly (no waiting). When the computer stands in for a missing human
 (match 2), it is randomly good or bad.
 
 Good computer: Bayesian (lam_disconfirm=0)      → guesses the higher-posterior jar.
-Bad  computer: Biased   (lam_disconfirm=0.9)    → guesses opposite of its posterior mode.
+Bad  computer: always guesses the wrong jar (opposite of the true jar) for the whole match.
 
 Payoffs per sub-round:
   Both correct:  $30
@@ -174,15 +174,16 @@ def _computer_type(player):
     return 'good' if rng.integers(0, 2) == 0 else 'bad'
 
 
-def _computer_guess(computer_type, draw_red):
-    """Good: guess the higher-posterior jar. Bad (lam_disconfirm=0.9): guess the opposite of its posterior mode."""
-    lam_disconfirm = 0.0 if computer_type == 'good' else 0.9
+def _computer_guess(computer_type, draw_red, jar):
+    """
+    Good: guess the higher-posterior jar from this round's draw.
+    Bad: always guess the wrong jar, so it never switches within a match.
+    """
+    if computer_type == 'bad':
+        return 'Blue' if jar == 'Red' else 'Red'
     engine = BeliefEngine(n_balls=C.N_BALLS, hypotheses=[C.BLUE_JAR_RED, C.RED_JAR_RED])
-    engine.update_asymmetric(C.N_DRAWS, draw_red, lam_confirm=0.0, lam_disconfirm=lam_disconfirm)
-    favours_red = float(engine.belief[1]) > 0.5
-    if computer_type == 'good':
-        return 'Red' if favours_red else 'Blue'
-    return 'Blue' if favours_red else 'Red'
+    engine.update_asymmetric(C.N_DRAWS, draw_red, lam_confirm=0.0, lam_disconfirm=0.0)
+    return 'Red' if float(engine.belief[1]) > 0.5 else 'Blue'
 
 
 def _assign_payoffs(p1, p2, jar):
@@ -378,7 +379,7 @@ class ChoicePage(Page):
         player.group.balls_drawn_json = json.dumps(['R'] * draw_red + ['B'] * draw_blue)
 
         computer_type = _computer_type(player)
-        computer = SimpleNamespace(guess=_computer_guess(computer_type, draw_red))
+        computer = SimpleNamespace(guess=_computer_guess(computer_type, draw_red, jar))
         _assign_payoffs(player, computer, jar)
 
         player.vs_computer     = True

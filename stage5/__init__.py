@@ -22,7 +22,7 @@ Bad computer writer strategy (stored for analysis): selects the sample whose Bay
 most strongly points toward the WRONG jar.
 
 Good bot reader: Bayesian (lam_confirm=0, lam_disconfirm=0)  → guesses higher-posterior jar.
-Bad  bot reader: Biased  (lam_confirm=0, lam_disconfirm=0.9) → guesses opposite of posterior mode.
+Bad  bot reader: always guesses the wrong jar (opposite of the true jar) for the whole match.
 
 Payoffs per sub-round:
   Both correct:  $30
@@ -464,7 +464,8 @@ class WriterPage(Page):
         if computer_type == 'good':
             bot_guess = 'Red' if post_good > 0.5 else 'Blue'
         else:
-            bot_guess = 'Blue' if post_bad > 0.5 else 'Red'
+            # Bad computer always guesses the wrong jar, so it never switches within a match
+            bot_guess = 'Blue' if jar == 'Red' else 'Red'
         computer = SimpleNamespace(guess=bot_guess)
 
         _assign_payoffs(player, computer, jar)
