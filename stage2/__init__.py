@@ -524,15 +524,37 @@ class ChoicePage(Page):
 
 
 class ResultsPage(Page):
+    """
+    Shown only after the last round of each jar group (rounds 3 and 6), summarising
+    that group's rounds. Payoffs are withheld mid-group so participants cannot infer
+    the true jar from them, which would remove the reason to buy extra balls.
+    """
+
     form_model  = 'player'
     form_fields = ['time_on_page']
 
     @staticmethod
+    def is_displayed(player):
+        return player.round_number % C.ROUNDS_PER_JAR == 0
+
+    @staticmethod
     def vars_for_template(player):
-        jar, initial, additional = _compute_all_draws(player.session.code, player.round_number)
-        n         = player.n_additional_draws
-        all_balls = initial + additional[:n]
         g, rig, group_start, group_end = _group_context(player.round_number)
+
+        group_rounds = []
+        for r in range(group_start, group_end + 1):
+            p   = player.in_round(r)
+            net = int(p.net_payoff)
+            group_rounds.append(dict(
+                round_number=r,
+                guess=p.guess,
+                n_additional=p.n_additional_draws,
+                draw_cost=int(p.total_draw_cost),
+                gross_payoff=int(p.gross_payoff),
+                abs_gross_payoff=abs(int(p.gross_payoff)),
+                net_payoff=net,
+                abs_net_payoff=abs(net),
+            ))
 
         group_net   = int(sum(
             player.in_round(r).net_payoff
@@ -542,25 +564,12 @@ class ResultsPage(Page):
             player.in_round(r).net_payoff
             for r in range(1, player.round_number + 1)
         ))
-        net = int(player.net_payoff)
         return dict(
             **_instructions_vars(),
-            draw_red=all_balls.count('R'),
-            draw_blue=all_balls.count('B'),
-            red_balls=list(range(all_balls.count('R'))),
-            blue_balls=list(range(all_balls.count('B'))),
-            n_total=len(all_balls),
             jar_group=g,
-            round_in_group=rig,
             group_start=group_start,
             group_end=group_end,
-            guess=player.guess,
-            is_correct=player.is_correct,
-            n_additional=n,
-            total_draw_cost=int(player.total_draw_cost),
-            gross_payoff=int(player.gross_payoff),
-            net_payoff=net,
-            abs_net_payoff=abs(net),
+            group_rounds=group_rounds,
             group_net=group_net,
             abs_group_net=abs(group_net),
             group_max_gross=PAYOFF_CORRECT * rig,
