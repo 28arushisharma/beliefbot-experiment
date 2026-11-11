@@ -14,7 +14,7 @@ Two jars: jar 1 (rounds 1-6, matches 1-2), jar 2 (rounds 7-12, matches 3-4, oppo
 Player 1 = Writer: sees all 20 balls + 6-ball sample shown to Reader; knows true jar.
 Player 2 = Reader: sees 6-ball sample only; may request up to 3 additional draws at no cost.
 
-Matches 1-2 (rounds 1-6): vs computer Reader (randomly 'good' or 'bad' per match).
+Matches 1-2 (rounds 1-6): every participant plays Writer vs their own computer Reader (bad bot).
 Matches 3-4 (rounds 7-12): vs real human Reader.
 
 Good bot reader: Bayesian (lam_confirm=0, lam_disconfirm=0)  → guesses higher-posterior jar.
@@ -157,14 +157,14 @@ def _is_bot_match(round_number):
     return _match_number(round_number) <= C.BOT_MATCHES
 
 def _is_writer(player):
-    return player.id_in_group == 1
+    """
+    Writer this round. In computer rounds everyone plays Writer against their own
+    computer Reader; in human matches Player 1 writes and Player 2 reads.
+    """
+    return _vs_computer(player) or player.id_in_group == 1
 
 def _is_reader(player):
-    return player.id_in_group == 2
-
-def _is_bot_reader(player):
-    """P2 acts as bot reader in matches 1-2."""
-    return _is_bot_match(player.round_number) and _is_reader(player)
+    return not _is_writer(player)
 
 def _is_solo(player):
     """True for the leftover participant of an odd-sized session (no human partner)."""
@@ -284,7 +284,7 @@ class StageIntroPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        # Round 1 only; P2 is always a bot at round 1 so this shows only to Writer
+        # Round 1 only; everyone is a Writer against the computer at round 1
         return player.round_number == 1 and _is_writer(player)
 
     @staticmethod
@@ -306,7 +306,7 @@ class MatchTransitionPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number in (4, 7, 10) and not _is_bot_reader(player)
+        return player.round_number in (4, 7, 10)
 
     @staticmethod
     def vars_for_template(player):
@@ -314,15 +314,10 @@ class MatchTransitionPage(Page):
         prev_match = match - 1
         prev_start = _match_start_round(prev_match)
         prev_end   = _match_end_round(prev_match)
-        # P2 (Reader) had no earnings during bot matches
-        was_bot_prev = _is_bot_match(prev_start) and _is_reader(player)
-        if was_bot_prev:
-            prev_match_net = 0
-        else:
-            prev_match_net = int(sum(
-                player.in_round(r).payoff_this_round
-                for r in range(prev_start, prev_end + 1)
-            ))
+        prev_match_net = int(sum(
+            player.in_round(r).payoff_this_round
+            for r in range(prev_start, prev_end + 1)
+        ))
         jar_changes = (player.round_number == 7)  # jar flips at match 3
         return dict(
             **_instructions_vars(),
@@ -332,6 +327,8 @@ class MatchTransitionPage(Page):
             is_vs_human=not _is_bot_match(player.round_number),
             is_writer=_is_writer(player),
             jar_changes=jar_changes,
+            # First human match: Player 2 switches from Writer (vs computer) to Reader
+            role_just_changed=player.round_number == C.BOT_MATCHES * C.ROUNDS_PER_MATCH + 1,
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
 
@@ -413,19 +410,8 @@ class WriterPage(Page):
         player.computer_guess  = computer.guess
         player.computer_payoff = computer.payoff_this_round
 
-        # Scheduled computer match: P2's seat plays the computer — keep its record too
-        if not _is_solo(player):
-            p2 = player.group.get_player_by_id(2)
-            p2.guess                 = computer.guess
-            p2.is_correct            = computer.is_correct
-            p2.payoff_this_round     = computer.payoff_this_round
-            p2.n_additional_draws    = 0
-            p2.additional_draws_json = json.dumps([])
-            p2.sample_json           = json.dumps(sample)
-            p2.posterior_red_good    = post_good
-            p2.posterior_red_bad     = post_bad
 
-        # Update only Writer's cumulative earnings (bot has none)
+        # Computer has no cumulative earnings; update this player only
         prev = player.participant.vars.get('cumulative_earnings', 0)
         player.participant.vars['cumulative_earnings'] = prev + player.payoff_this_round
 
@@ -458,7 +444,7 @@ class ReaderPage(Page):
     @staticmethod
     def is_displayed(player):
         # Shown to human Reader only (P2 in human matches)
-        return not _is_bot_reader(player) and _is_reader(player)
+        return _is_reader(player)
 
     @staticmethod
     def vars_for_template(player):
@@ -537,10 +523,6 @@ class ResultsWaitPage(WaitPage):
 class ResultsPage(Page):
     form_model  = 'player'
     form_fields = ['time_on_page']
-
-    @staticmethod
-    def is_displayed(player):
-        return not _is_bot_reader(player)
 
     @staticmethod
     def vars_for_template(player):

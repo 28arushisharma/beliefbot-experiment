@@ -48,6 +48,14 @@
         You have been matched with the other player (the Writer) for Match {{ match_number }}.
         You will play 3 rounds together.
       </p>
+      {% if role_just_changed %}
+      <div class="alert alert-primary mb-2 py-2" style="font-size:0.88rem;">
+        <strong>Your role has changed: you are now the Reader.</strong>
+        The other player sends you a sample of {{ C.SAMPLE_SIZE }} balls.
+        You will see only that sample, may request up to {{ C.MAX_ADDITIONAL }} additional draws,
+        and then guess which jar the balls came from.
+      </div>
+      {% endif %}
       {% if jar_changes %}
       <div class="alert alert-info mb-2 py-2" style="font-size:0.88rem;">
         <strong>Jar change:</strong> The jar may change starting in Match 3.

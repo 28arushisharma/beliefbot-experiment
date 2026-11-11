@@ -15,7 +15,7 @@ Player 1 = Writer: sees all 20 balls + 6 candidate samples (drawn WITH replaceme
           one sample to send to Reader; knows true jar.
 Player 2 = Reader: sees only the Writer's chosen sample; may request up to 3 additional draws.
 
-Matches 1-2 (rounds 1-6):  vs computer Reader (bot P2); additional draws free.
+Matches 1-2 (rounds 1-6):  every participant plays Writer vs their own computer Reader; draws free.
 Matches 3-4 (rounds 7-12): vs real human Reader; additional draws cost $2 each.
 
 Bad computer writer strategy (stored for analysis): selects the sample whose Bayesian posterior
@@ -195,13 +195,14 @@ def _is_bot_match(round_number):
     return _match_number(round_number) <= C.BOT_MATCHES
 
 def _is_writer(player):
-    return player.id_in_group == 1
+    """
+    Writer this round. In computer rounds everyone plays Writer against their own
+    computer Reader; in human matches Player 1 writes and Player 2 reads.
+    """
+    return _vs_computer(player) or player.id_in_group == 1
 
 def _is_reader(player):
-    return player.id_in_group == 2
-
-def _is_bot_reader(player):
-    return _is_bot_match(player.round_number) and _is_reader(player)
+    return not _is_writer(player)
 
 def _is_solo(player):
     """True for the leftover participant of an odd-sized session (no human partner)."""
@@ -354,7 +355,7 @@ class MatchTransitionPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number in (4, 7, 10) and not _is_bot_reader(player)
+        return player.round_number in (4, 7, 10)
 
     @staticmethod
     def vars_for_template(player):
@@ -362,8 +363,7 @@ class MatchTransitionPage(Page):
         prev_match = match - 1
         prev_start = _match_start_round(prev_match)
         prev_end   = _match_end_round(prev_match)
-        was_bot_prev = _is_bot_match(prev_start) and _is_reader(player)
-        prev_match_net = 0 if was_bot_prev else int(sum(
+        prev_match_net = int(sum(
             player.in_round(r).payoff_this_round
             for r in range(prev_start, prev_end + 1)
         ))
@@ -376,6 +376,8 @@ class MatchTransitionPage(Page):
             is_vs_human=not _is_bot_match(player.round_number),
             is_writer=_is_writer(player),
             jar_changes=jar_changes,
+            # First human match: Player 2 switches from Writer (vs computer) to Reader
+            role_just_changed=player.round_number == C.BOT_MATCHES * C.ROUNDS_PER_MATCH + 1,
             draw_cost_display=int(C.DRAW_COST_PER_BALL),
             cumulative_earnings=int(player.participant.vars.get('cumulative_earnings', 0)),
         )
@@ -475,20 +477,8 @@ class WriterPage(Page):
         player.computer_guess  = computer.guess
         player.computer_payoff = computer.payoff_this_round
 
-        # Scheduled computer match: P2's seat plays the computer — keep its record too
-        if not _is_solo(player):
-            p2 = player.group.get_player_by_id(2)
-            p2.guess                 = computer.guess
-            p2.is_correct            = computer.is_correct
-            p2.payoff_this_round     = computer.payoff_this_round
-            p2.n_additional_draws    = 0
-            p2.additional_draws_json = json.dumps([])
-            p2.additional_draw_cost  = 0.0
-            p2.selected_sample_json  = json.dumps(selected_sample)
-            p2.posterior_red_good    = post_good
-            p2.posterior_red_bad     = post_bad
 
-        # Computer has no cumulative earnings; update Writer only
+        # Computer has no cumulative earnings; update this player only
         prev = player.participant.vars.get('cumulative_earnings', 0)
         player.participant.vars['cumulative_earnings'] = prev + player.payoff_this_round
 
@@ -515,7 +505,7 @@ class ReaderPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        return not _is_bot_reader(player) and _is_reader(player)
+        return _is_reader(player)
 
     @staticmethod
     def vars_for_template(player):
@@ -605,12 +595,8 @@ class ResultsPage(Page):
     form_fields = ['time_on_page']
 
     @staticmethod
-    def is_displayed(player):
-        return not _is_bot_reader(player)
-
-    @staticmethod
     def vars_for_template(player):
-        writer     = player.group.get_player_by_id(1)
+        writer     = player if player.vs_computer else player.group.get_player_by_id(1)
         if player.vs_computer:
             partner_guess, partner_payoff = player.computer_guess, player.computer_payoff
             n_add, add_cost = 0, 0.0  # the computer reader never requests additional draws

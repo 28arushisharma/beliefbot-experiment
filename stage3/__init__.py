@@ -13,7 +13,7 @@ The jar changes between every match: each match gets a new, independently random
 assigned jar (Red or Blue), fixed for that match's 3 sub-rounds.
 10 balls drawn per sub-round with replacement.
 
-Match 1 (rounds 1-3): vs computer (always the bad bot).
+Match 1 (rounds 1-3): every participant plays their own computer (always the bad bot).
 Match 2 (rounds 4-6): vs real human partner.
 The bot/human distinction is internal only — never shown to participants.
 
@@ -135,10 +135,6 @@ def _round_in_match(round_number):
 def _is_bot_match(round_number):
     return _match_number(round_number) <= C.BOT_MATCHES
 
-def _is_bot_player(player):
-    """Player 2 in bot matches acts as computer opponent; all their pages are hidden."""
-    return _is_bot_match(player.round_number) and player.id_in_group == 2
-
 def _is_solo(player):
     """True for the leftover participant of an odd-sized session (no human partner)."""
     return len(player.group.get_players()) == 1
@@ -257,7 +253,7 @@ class StageIntroPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number == 1 and not _is_bot_player(player)
+        return player.round_number == 1
 
     @staticmethod
     def vars_for_template(player):
@@ -277,7 +273,7 @@ class MatchTransitionPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        return player.round_number == 4 and not _is_bot_player(player)
+        return player.round_number == 4
 
     @staticmethod
     def vars_for_template(player):
@@ -285,15 +281,10 @@ class MatchTransitionPage(Page):
         prev_match = match - 1
         prev_start = _match_start_round(prev_match)
         prev_end   = _match_end_round(prev_match)
-        # Player 2 was a bot in match 1; those payoffs don't count for them
-        was_bot_prev = _is_bot_match(prev_start) and player.id_in_group == 2
-        if was_bot_prev:
-            prev_match_net = 0
-        else:
-            prev_match_net = int(sum(
-                player.in_round(r).payoff_this_round
-                for r in range(prev_start, prev_end + 1)
-            ))
+        prev_match_net = int(sum(
+            player.in_round(r).payoff_this_round
+            for r in range(prev_start, prev_end + 1)
+        ))
         return dict(
             **_instructions_vars(),
             match_number=match,
@@ -311,10 +302,6 @@ class MatchTransitionPage(Page):
 class DrawPage(Page):
     form_model  = 'player'
     form_fields = ['time_on_page']
-
-    @staticmethod
-    def is_displayed(player):
-        return not _is_bot_player(player)
 
     @staticmethod
     def vars_for_template(player):
@@ -343,10 +330,6 @@ class ChoicePage(Page):
     def error_message(player, values):
         if not values.get('guess'):
             return 'Please select a jar before continuing.'
-
-    @staticmethod
-    def is_displayed(player):
-        return not _is_bot_player(player)
 
     @staticmethod
     def vars_for_template(player):
@@ -390,13 +373,6 @@ class ChoicePage(Page):
         post = _posterior(draw_red)
         player.posterior_red = post
 
-        # Scheduled computer match: P2's seat plays the computer — keep its record too
-        if not _is_solo(player):
-            p2 = player.group.get_player_by_id(2)
-            p2.guess             = computer.guess
-            p2.is_correct        = computer.is_correct
-            p2.payoff_this_round = computer.payoff_this_round
-            p2.posterior_red     = post
 
         prev = player.participant.vars.get('cumulative_earnings', 0)
         player.participant.vars['cumulative_earnings'] = prev + player.payoff_this_round
@@ -449,10 +425,6 @@ class ResultsPage(Page):
     form_fields = ['time_on_page']
 
     @staticmethod
-    def is_displayed(player):
-        return not _is_bot_player(player)
-
-    @staticmethod
     def vars_for_template(player):
         if player.vs_computer:
             partner_guess = player.computer_guess
@@ -482,7 +454,7 @@ class MatchSummaryPage(Page):
 
     @staticmethod
     def is_displayed(player):
-        return _round_in_match(player.round_number) == C.ROUNDS_PER_MATCH and not _is_bot_player(player)
+        return _round_in_match(player.round_number) == C.ROUNDS_PER_MATCH
 
     @staticmethod
     def vars_for_template(player):
