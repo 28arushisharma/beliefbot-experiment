@@ -57,8 +57,8 @@ SESSION_CONFIGS = [
 
 ROOMS = [
     dict(
-        name='confirmationbias',
-        display_name='Confirmation Bias Study',
+        name='emory_cb_study',
+        display_name='Emory CB Study',
         participant_label_file='_rooms/pilot.txt',
     ),
 ]
